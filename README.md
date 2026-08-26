@@ -18,7 +18,7 @@ distributed, and it cannot be centralised, because it is patient records.
 So the query travels instead of the data.
 
 <p align="center">
-  <img src="docs/dataflow.svg" alt="The clinician's query fans out to every hospital; each site reads its own notes locally and returns an abstraction; record identifiers and free text never cross the boundary." width="100%">
+  <img src="https://github.com/mfarzi/hackathon-sammz/blob/main/docs/dataflow.svg" alt="The clinician's query fans out to every hospital; each site reads its own notes locally and returns an abstraction; record identifiers and free text never cross the boundary." width="100%">
 </p>
 
 Six stages: the clinician's description is parsed into a structured query; it
