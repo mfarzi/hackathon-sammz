@@ -1,9 +1,5 @@
-import { TypeSpecimen } from "@/components/ds";
+import { ConsultApp } from "@/components/consult";
 
 export default function Home() {
-  return (
-    <main>
-      <TypeSpecimen />
-    </main>
-  );
+  return <ConsultApp />;
 }

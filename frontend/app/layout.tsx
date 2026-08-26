@@ -17,9 +17,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Adversarial Review Panel — Design system",
+  title: "Rare Disease Consult Network",
   description:
-    "Instrument design system for a blind multi-lens code review panel. Survivors, dissent, calibration.",
+    "Ask fifty hospitals. Move no records. A federated consult where every site reasons over its own notes and a blind review panel decides what survives.",
 };
 
 export default function RootLayout({

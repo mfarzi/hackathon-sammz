@@ -15,6 +15,11 @@
   --color-instrument-ink: #e8e2d6;
   --color-instrument-muted: #8a8478;
 
+  --color-wait: #2f6f80;
+  --color-wait-soft: #e3edf0;
+  --color-ask: #a3742a;
+  --color-ask-soft: #f3ead9;
+
   --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
 }
@@ -51,5 +56,27 @@
   .font-mono {
     font-family: var(--font-mono), ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }
