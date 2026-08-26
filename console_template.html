@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rare Disease Consult Network — live console</title>
+<style>
+  :root{
+    --bg:#070b14; --card:#0e1526; --card2:#111b31; --line:#1d2a47;
+    --ink:#dbe4f5; --dim:#8294b4; --cyan:#38bdf8; --amber:#fbbf24;
+    --green:#34d399; --red:#f87171; --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,'Segoe UI',sans-serif;font-size:14px}
+  header{display:flex;justify-content:space-between;align-items:center;
+         padding:14px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:10px}
+  .brand{font-weight:700;letter-spacing:.12em;font-size:15px}
+  .brand .tag{color:var(--cyan)}
+  .brand .sub{display:block;font-weight:400;color:var(--dim);letter-spacing:.02em;font-size:11px;margin-top:2px}
+  .controls{display:flex;gap:8px;align-items:center}
+  button,select{background:var(--card2);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+  button.run{background:var(--cyan);color:#04121f;font-weight:700;border-color:var(--cyan)}
+  button:disabled{opacity:.4;cursor:default}
+
+  #rail{display:flex;gap:6px;padding:12px 20px;flex-wrap:wrap}
+  .stage{display:flex;align-items:center;gap:7px;border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px 4px 5px;color:var(--dim);font-size:12px;background:var(--card)}
+  .stage .num{width:20px;height:20px;border-radius:50%;background:var(--line);color:var(--ink);
+    display:grid;place-items:center;font-size:11px;font-family:var(--mono)}
+  .stage.active{border-color:var(--cyan);color:var(--ink);box-shadow:0 0 12px rgba(56,189,248,.25)}
+  .stage.active .num{background:var(--cyan);color:#04121f}
+  .stage.done .num{background:var(--green);color:#04121f}
+
+  main{display:grid;grid-template-columns:320px 1fr 400px;gap:14px;padding:0 20px 20px}
+  @media(max-width:1100px){main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .card h2{margin:0 0 10px;font-size:11px;letter-spacing:.14em;color:var(--dim);
+    text-transform:uppercase;font-weight:600}
+
+  .case-narr{font-size:13.5px;line-height:1.55;color:var(--ink);min-height:90px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+  .chip{background:#12233f;color:#7dd3fc;border:1px solid #1e3a5f;border-radius:999px;
+    padding:2px 9px;font-size:11.5px;font-family:var(--mono)}
+  .chip.demo{background:#1a1a2e;color:#c4b5fd;border-color:#3730a3}
+  .meta{color:var(--dim);font-size:12px;margin-top:8px}
+  .lock{color:var(--amber)}
+
+  .sites{display:flex;flex-direction:column;gap:12px}
+  .site{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .site-head{display:flex;align-items:center;gap:9px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .led{width:9px;height:9px;border-radius:50%;background:#334155;flex:none}
+  .led.query{background:var(--amber);animation:pulse 1s infinite}
+  .led.ok{background:var(--green)}
+  .led.none{background:var(--red)}
+  @keyframes pulse{50%{opacity:.3}}
+  .site-head b{font-size:13.5px}
+  .site-head .hosp{color:var(--dim);font-size:12px}
+  .site-head .nrec{margin-left:auto;color:var(--dim);font-size:11px;font-family:var(--mono)}
+  .site-body{padding:12px 14px;min-height:56px;color:var(--dim);font-size:12.5px}
+  .site-body .nodata{color:var(--red);font-family:var(--mono)}
+  .drow{margin-top:10px;padding:9px 11px;background:var(--card2);border:1px solid var(--line);
+    border-radius:10px;animation:fadein .4s}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}}
+  .drow .dname{font-weight:600;color:var(--ink)}
+  .drow .dn{color:var(--cyan);font-family:var(--mono);font-size:11px;margin-left:6px}
+  .drow .abs{color:var(--dim);margin-top:5px;line-height:1.5}
+  .drow .abs b{color:var(--ink);font-weight:600}
+  .snippet{margin-top:6px;font-size:11.5px;color:#9fb0cc;border-left:2px solid var(--amber);
+    padding-left:8px;line-height:1.45}
+  .followup{margin-top:10px;display:grid;gap:6px}
+  .bubble{padding:8px 11px;border-radius:10px;font-size:12.5px;line-height:1.45;animation:fadein .4s}
+  .bubble.q{background:#123047;border:1px solid #1d4e6b;color:#bae6fd;justify-self:end;max-width:90%}
+  .bubble.a{background:#132a1e;border:1px solid #22543d;color:#bbf7d0;max-width:90%}
+  .bubble .who{font-size:10px;letter-spacing:.1em;color:var(--dim);display:block;margin-bottom:3px}
+
+  aside{display:flex;flex-direction:column;gap:12px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{color:var(--dim);text-align:left;font-weight:500;font-size:11px;letter-spacing:.06em;padding:4px 6px}
+  td{padding:5px 6px;border-top:1px solid var(--line)}
+  .bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;min-width:60px}
+  .bar i{display:block;height:100%;background:var(--cyan)}
+  tr.top td{color:var(--cyan)}
+  .cnt{font-family:var(--mono);color:var(--dim);font-size:11px}
+
+  .cand{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-top:8px;animation:fadein .4s}
+  .cand .chead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .cand .cname{font-weight:600}
+  .cand.planted{border-color:#7c2d12}
+  .cand.planted .cname::after{content:"planted calibration probe";color:var(--amber);
+    font-size:10px;letter-spacing:.08em;margin-left:8px;font-weight:500}
+  .badge{font-size:10.5px;letter-spacing:.08em;border-radius:999px;padding:2px 9px;font-family:var(--mono)}
+  .badge.survived{background:#052e1a;color:var(--green);border:1px solid #14532d}
+  .badge.killed{background:#3f0d0d;color:var(--red);border:1px solid #7f1d1d}
+  .badge.unverified{background:#292524;color:#d6d3d1;border:1px solid #57534e}
+  .refuters{margin-top:7px;display:grid;gap:4px}
+  .ref{font-size:11.5px;color:var(--dim);display:flex;gap:7px;line-height:1.4}
+  .ref::before{content:"✕";color:var(--red);font-family:var(--mono)}
+  .ref.hold{opacity:0}
+  .dissent{margin-top:6px;font-size:11px;color:var(--amber)}
+
+  #calib{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12.5px;display:none}
+  #calib.good{display:block;background:#052e1a;border:1px solid #14532d;color:#bbf7d0}
+  #calib.bad{display:block;background:#3f0d0d;border:1px solid #7f1d1d;color:#fecaca}
+  footer{color:var(--dim);font-size:11.5px;padding:0 20px 24px;line-height:1.6}
+  footer b{color:var(--ink)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">▚ RARE DISEASE <span class="tag">CONSULT NETWORK</span>
+    <span class="sub">federated · privacy-preserving · adversarial review — records never leave the hospital</span>
+  </div>
+  <div class="controls">
+    <select id="preset"></select>
+    <button class="run" id="run">Run consult ▸</button>
+    <button id="skip">Skip to report ⏭</button>
+  </div>
+</header>
+
+<nav id="rail"></nav>
+
+<main>
+  <section class="card" id="caseCard">
+    <h2>Clinician's case</h2>
+    <div class="case-narr" id="narr">Pick a case and run the consult.</div>
+    <div class="chips" id="qchips"></div>
+    <div class="meta" id="qmeta"></div>
+    <div class="meta">🔒 No identifiers constructed — brackets only.</div>
+  </section>
+
+  <section class="sites" id="sitesWrap"></section>
+
+  <aside>
+    <div class="card" id="rankCard">
+      <h2>Network ranking <span style="float:right;font-weight:400;text-transform:none;letter-spacing:0">mean of top-3 similarity · count = provenance only</span></h2>
+      <div id="rankBody" class="meta">No consult yet.</div>
+    </div>
+    <div class="card" id="panelCard">
+      <h2>Adversarial review panel</h2>
+      <div id="panelBody" class="meta">Five blind reviewers. Three refuters per candidate. Survivors carry dissent.</div>
+      <div id="calib"></div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <b>Crossed the wire:</b> structured query · disease scores · site-authored abstractions.&nbsp;
+  <b>Never crossed:</b> record_id · free-text notes · anything identifying.
+  Synthetic dataset — 500 records, 3 hospital sites, all ages incl. paediatrics.
+</footer>
+
+<script>
+const SITE_DATA = __SITE_DATA__;
+const SITE_NAMES = {A:"Addenbrooke's — Cambridge", B:"Manchester Royal Infirmary", C:"Freeman — Newcastle"};
+
+const PRESETS = [
+  {
+    id:"kawasaki",
+    label:"① Paediatric fever + rash — the split case",
+    narrative:"4-year-old girl. Six days of persistent fever despite paracetamol, getting worse. Polymorphous rash over the trunk, red eyes without discharge, cracked red lips, swollen hands and feet, one large neck gland. Extremely irritable, feeding poorly. Nobody at this hospital has seen anything like it.",
+    q:{symptoms:["fever","rash","conjunctival_injection","red_cracked_lips","swollen_hands_feet","cervical_lymphadenopathy","irritability"], age_bracket:"3-5", gender:"F"},
+    planted:{name:"scarlet_fever", lines:[
+      "No sandpaper-texture rash described in any matched note.",
+      "No exudative pharyngitis; conjunctival injection points away from streptococcal cause.",
+      "Where throat swabs were recorded, all negative."]},
+    followUp:{to:"C", question:"Your two matched cases — any coronary involvement on echo?",
+              answer:"One had transient coronary dilation at week 2. Both received IVIG within 7 days of fever onset."}
+  },
+  {
+    id:"gbs",
+    label:"② Adult ascending weakness",
+    narrative:"54-year-old man. Four days of legs feeling heavy, now struggling on stairs. Tingling in both feet. Aching lower back. No fever, no headache. GP found weak hip flexion and sent him in.",
+    q:{symptoms:["limb_weakness","paresthesia","back_pain","fatigue_malaise"], age_bracket:"51-65", gender:"M"},
+    planted:{name:"multiple_sclerosis", lines:[
+      "No relapsing-remitting course in any matched note — all monophasic.",
+      "Areflexia is atypical; no pyramidal signs documented.",
+      "No demyelinating plaques on imaging where recorded."]},
+    followUp:{to:null, question:"Bulbar or respiratory involvement in your cases?",
+              answer:"Two needed serial FVC monitoring. None intubated to date."}
+  },
+  {
+    id:"cap",
+    label:"③ Common query — community-acquired pneumonia",
+    narrative:"58-year-old man, three days of fever with rigors, coughing green sputum, breathless on the stairs. Sounds like pneumonia — this one we see constantly.",
+    q:{symptoms:["productive_cough","fever","dyspnea","rigors"], age_bracket:"51-65", gender:"M"},
+    planted:{name:"pulmonary_tuberculosis", lines:[
+      "No chronic night-sweat / weight-loss constellation in matched notes.",
+      "No cavitary changes on any matched chest imaging.",
+      "No TB risk factors documented in the matched cohort."]},
+    followUp:{to:null, question:"Any atypical exposures or recent travel in your matches?",
+              answer:"Nothing discriminating in the notes — this behaves like the common presentation."}
+  }
+];
+
+const STAGES = ["Parse query","Fan-out to sites","Site agents read notes","Follow-up question","Review panel","Report"];
+let SPEED = 1;
+const sleep = ms => new Promise(r => setTimeout(r, ms * SPEED));
+const $ = id => document.getElementById(id);
+
+// ---------------------------------------------------------------- retrieval (deterministic)
+function scoreRec(rec, q){
+  const S = new Set(rec.symptoms);
+  let inter = 0; q.symptoms.forEach(s => { if (S.has(s)) inter++; });
+  const uni = new Set([...q.symptoms, ...rec.symptoms]).size;
+  let s = inter / uni;
+  if (rec.age_bracket === q.age_bracket) s += 0.08;
+  if (rec.gender === q.gender) s += 0.04;
+  return s;
+}
+function siteMatches(site, q){
+  return SITE_DATA[site]
+    .map(r => ({r, s: scoreRec(r, q)}))
+    .filter(m => m.s >= 0.40)
+    .sort((a,b) => b.s - a.s);
+}
+function abstraction(matches, q){
+  const byD = {};
+  matches.forEach(m => (byD[m.r.disease] = byD[m.r.disease] || []).push(m.r));
+  return Object.entries(byD)
+    .map(([d, recs]) => {
+      const prev = {};
+      q.symptoms.forEach(sym => {
+        prev[sym] = recs.filter(r => r.symptoms.includes(sym)).length / recs.length;
+      });
+      const common = Object.entries(prev).filter(([,p]) => p >= 0.6).map(([s]) => s);
+      const absent = Object.entries(prev).filter(([,p]) => p < 0.25).map(([s]) => s);
+      return {d, n: recs.length, recs, prev, common, absent};
+    })
+    .sort((a,b) => b.n - a.n);
+}
+function rankNetwork(perSite){
+  const byD = {};
+  Object.values(perSite).flat().forEach(m =>
+    (byD[m.r.disease] = byD[m.r.disease] || []).push(m.s));
+  return Object.entries(byD).map(([d, scores]) => {
+    const top = [...scores].sort((a,b) => b - a).slice(0, 3);
+    return {d, score: top.reduce((a,b) => a+b, 0) / top.length, n: scores.length};
+  }).sort((a,b) => b.score - a.score);
+}
+
+// ---------------------------------------------------------------- ui
+function buildRail(){
+  $("rail").innerHTML = STAGES.map((s,i) =>
+    `<div class="stage" id="st${i}"><span class="num">${i+1}</span>${s}</div>`).join("");
+}
+function setStage(i){
+  for (let k = 0; k < STAGES.length; k++){
+    const el = $("st"+k);
+    el.classList.toggle("active", k === i);
+    el.classList.toggle("done", k < i);
+  }
+}
+function buildSites(){
+  $("sitesWrap").innerHTML = ["A","B","C"].map(s => `
+    <div class="site" id="site${s}">
+      <div class="site-head">
+        <span class="led" id="led${s}"></span>
+        <b>Site ${s}</b><span class="hosp">${SITE_NAMES[s]}</span>
+        <span class="nrec">${SITE_DATA[s].length} records on-site 🔒</span>
+      </div>
+      <div class="site-body" id="body${s}">idle</div>
+    </div>`).join("");
+}
+const pretty = s => s.replaceAll("_"," ");
+
+function renderQuery(p){
+  $("narr").textContent = "“" + p.narrative + "”";
+  $("qchips").innerHTML = p.q.symptoms.map(s => `<span class="chip">${pretty(s)}</span>`).join("");
+  $("qmeta").innerHTML = `age_bracket <b>${p.q.age_bracket}</b> · sex <b>${p.q.gender}</b> · ${p.q.symptoms.length} symptoms`;
+}
+function renderSiteReply(site, matches, abss, q){
+  const body = $("body"+site), led = $("led"+site);
+  if (!matches.length){
+    led.className = "led none";
+    body.innerHTML = `<div class="nodata">NO DATA — no comparable case has ever been seen here.</div>` +
+      `<div style="margin-top:6px">The negative result travels with the rest.</div>`;
+    return;
+  }
+  led.className = "led ok";
+  const rows = abss.slice(0,2).map(a => `
+    <div class="drow">
+      <span class="dname">${pretty(a.d)}</span><span class="dn">× ${a.n} matched</span>
+      <div class="abs">Common to matched cases: <b>${a.common.map(pretty).join(", ") || "—"}</b>
+        ${a.absent.length ? `<br>Notably absent: <b>${a.absent.map(pretty).join(", ")}</b>` : ""}</div>
+      <div class="snippet">🔒 site agent read the notes locally — <i>“${a.recs[0].text.slice(0,150).replaceAll("\n"," ")}…”</i> <span style="color:var(--dim)">(never transmitted)</span></div>
+    </div>`).join("");
+  body.innerHTML = `<div>${matches.length} candidate${matches.length === 1 ? "" : "s"} retrieved by symptom overlap · site agent read ${Math.min(matches.length,5)} full note${Math.min(matches.length,5) === 1 ? "" : "s"}</div>${rows}`;
+}
+function renderRanking(ranked){
+  const max = ranked[0]?.score || 1;
+  $("rankBody").innerHTML = `<table><tr><th>disease</th><th>top-3 mean</th><th>cases</th></tr>` +
+    ranked.slice(0,6).map((r,i) => `
+      <tr class="${i===0?'top':''}"><td>${pretty(r.d)}</td>
+      <td><div class="bar"><i style="width:${(r.score/max*100).toFixed(0)}%"></i></div></td>
+      <td class="cnt">${r.n}</td></tr>`).join("") + `</table>`;
+}
+function refuterLines(cand, ranked, q){
+  const worst = Object.entries(cand.prev).sort((a,b) => a[1]-b[1])[0];
+  const l1 = `“${pretty(worst[0])}” absent in ${cand.n - Math.round(worst[1]*cand.n)}/${cand.n} matched cases.`;
+  const ages = [...new Set(cand.recs.map(r => r.age_bracket))].slice(0,3).join(", ");
+  const l2 = ages.length > 1
+    ? `age spread across matched cases (${ages}) — overlap may be demographic, not clinical.`
+    : `overlap driven partly by non-specific features (fever, malaise).`;
+  const overlap = ranked.filter(r => r.d !== cand.d).length;
+  const l3 = overlap === 0
+    ? `no other candidate shares this symptom profile — specificity is strong.`
+    : `shares core features with ${Math.min(overlap,5)} other candidates — specificity unproven.`;
+  return [l1, l2, l3];
+}
+function candVerdict(cand){
+  const avgPrev = Object.values(cand.prev).reduce((a,b)=>a+b,0) / Object.keys(cand.prev).length;
+  if (avgPrev >= 0.60) return {v:"survived", note:`withstood attack — mean query-symptom prevalence ${(avgPrev*100).toFixed(0)}%`};
+  if (avgPrev >= 0.45 && cand.n < 3) return {v:"unverified", note:`too few cases (${cand.n}) for a verdict — never read as agreement`};
+  return {v:"killed", note:`majority refuted — mean prevalence only ${(avgPrev*100).toFixed(0)}%`};
+}
+function renderCandidate(host, cand, ranked, q, planted){
+  const div = document.createElement("div");
+  div.className = "cand" + (planted ? " planted" : "");
+  const lines = planted ? cand.lines : refuterLines(cand, ranked, q);
+  div.innerHTML = `<div class="chead"><span class="cname">${pretty(cand.name || cand.d)}</span><span class="badge" style="visibility:hidden">…</span></div>
+    <div class="refuters">${lines.map(l => `<div class="ref hold">${l}</div>`).join("")}</div>`;
+  host.appendChild(div);
+  return {div, lines};
+}
+async function runPanel(ranked, perSite, q, preset){
+  setStage(4);
+  const host = $("panelBody");
+  host.innerHTML = "";
+  // top candidates + the planted probe, indistinguishable in form
+  const top = ranked.slice(0,4);
+  const cards = [];
+  for (const r of top){
+    const abss = Object.values(perSite).map(matches => abstraction(matches, q)).flat();
+    const cand = abss.find(a => a.d === r.d);
+    if (cand) cards.push({cand, planted:false});
+  }
+  cards.push({cand:{name:preset.planted.name, lines:preset.planted.lines}, planted:true});
+  for (const c of cards){
+    const {div} = renderCandidate(host, c.cand, ranked, q, c.planted);
+    await sleep(650);
+    const refs = div.querySelectorAll(".ref");
+    for (const refEl of refs){ refEl.classList.remove("hold"); await sleep(380); }
+    const badge = div.querySelector(".badge");
+    if (c.planted){
+      badge.textContent = "REFUTED 3/3"; badge.className = "badge killed";
+    } else {
+      const {v, note} = candVerdict(c.cand);
+      badge.textContent = v.toUpperCase(); badge.className = "badge " + v;
+      if (v === "survived"){
+        const worst = Object.entries(c.cand.prev).sort((a,b)=>a[1]-b[1])[0];
+        if (worst[1] < 0.8){
+          const d = document.createElement("div");
+          d.className = "dissent";
+          d.textContent = `⚠ dissent attached: one refuter noted “${pretty(worst[0])}” missing in ${Math.round((1-worst[1])*c.cand.n)} of ${c.cand.n} cases.`;
+          div.appendChild(d);
+        }
+      }
+      div.title = note;
+      const nd = document.createElement("div");
+      nd.className = "dissent"; nd.style.color = "var(--dim)";
+      nd.textContent = note;
+      div.appendChild(nd);
+    }
+    await sleep(300);
+  }
+  setStage(5);
+  const calib = $("calib");
+  calib.className = "good";
+  calib.innerHTML = `✓ CALIBRATION — planted diagnosis <b>${pretty(preset.planted.name)}</b> was refuted 3/3 on this run. The surviving verdicts mean something.`;
+}
+
+// ---------------------------------------------------------------- orchestration
+async function runConsult(){
+  const p = PRESETS[+$("preset").value];
+  SPEED = 1; $("run").disabled = true;
+  buildSites();
+  $("rankBody").innerHTML = `<div class="meta">…</div>`;
+  $("panelBody").innerHTML = `<div class="meta">awaiting candidates</div>`;
+  $("calib").className = ""; $("calib").innerHTML = "";
+
+  // 1 parse
+  setStage(0);
+  renderQuery(p);
+  await sleep(900);
+
+  // 2 fan-out
+  setStage(1);
+  for (const s of ["A","B","C"]){
+    $("led"+s).className = "led query";
+    $("body"+s).innerHTML = "querying…";
+    await sleep(250);
+  }
+  await sleep(700);
+
+  // 3 site agents
+  setStage(2);
+  const perSite = {};
+  for (const s of ["A","B","C"]){
+    const matches = siteMatches(s, p.q);
+    perSite[s] = matches;
+    renderSiteReply(s, matches, abstraction(matches, p.q), p.q);
+    await sleep(700);
+  }
+  const ranked = rankNetwork(perSite);
+  renderRanking(ranked);
+
+  // 4 follow-up: hub asks the site holding the most matches of the top candidate
+  setStage(3);
+  const followSite = p.followUp.to || Object.entries(perSite)
+    .map(([s,m]) => [s, m.filter(x => x.r.disease === ranked[0].d).length])
+    .sort((a,b) => b[1]-a[1])[0][0];
+  const fu = document.createElement("div");
+  fu.className = "followup";
+  fu.innerHTML = `<div class="bubble q"><span class="who">HUB → SITE ${followSite}</span>${p.followUp.question}</div>`;
+  $("body"+followSite).appendChild(fu);
+  await sleep(1100);
+  const ans = document.createElement("div");
+  ans.className = "bubble a";
+  ans.innerHTML = `<span class="who">SITE ${followSite} AGENT · read from local notes</span>${p.followUp.answer}`;
+  fu.appendChild(ans);
+  await sleep(1200);
+
+  // 5+6 panel & report
+  await runPanel(ranked, perSite, p.q, p);
+  $("run").disabled = false;
+}
+
+// ---------------------------------------------------------------- boot
+$("preset").innerHTML = PRESETS.map((p,i) => `<option value="${i}">${p.label}</option>`).join("");
+buildRail(); setStage(-1); buildSites();
+$("run").addEventListener("click", runConsult);
+$("skip").addEventListener("click", () => { SPEED = 0; });
+$("preset").addEventListener("change", e => {
+  renderQuery(PRESETS[e.target.value]);
+});
+renderQuery(PRESETS[0]);
+</script>
+</body>
+</html>
