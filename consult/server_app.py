@@ -11,8 +11,8 @@ what is true. The panel decides what it means.
 
 from __future__ import annotations
 
+import re
 import time
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from flwr.app import Context
@@ -110,8 +110,25 @@ def _parse_case(client, model: str, description: str) -> dict[str, Any]:
 
 
 def _fallback_tokens(description: str) -> list[str]:
-    """Crude symptom guess from raw words, for when there is no model to ask."""
-    return [w.strip(".,;:").lower() for w in description.split() if len(w) > 4][:12]
+    """Guess symptoms from raw words, for when there is no model to ask.
+
+    Matches against the shared vocabulary rather than emitting bare words: a
+    dry run whose symptoms are "woman", "twenties", "months" exercises nothing
+    and looks broken. A vocabulary token counts as present when all the words
+    making it up appear in the description, which catches `slurred_speech` and
+    `mood_change` from ordinary prose without needing a model.
+    """
+    words = set(re.findall(r"[a-z]+", description.lower()))
+    if not words:
+        return []
+    matched = [
+        token
+        for token in load_vocabulary()
+        if all(part in words for part in token.split("_"))
+    ]
+    # Prefer the most specific matches when there are more than the cap allows.
+    matched.sort(key=lambda t: (-len(t.split("_")), t))
+    return matched[:12]
 
 
 def _fan_out(grid: Grid, payload: dict, message_type: str, node_ids: list[int], group: str):
