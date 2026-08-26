@@ -1,6 +1,6 @@
 [project]
 name = "rare-disease-consult-network"
-version = "0.2.0"
+version = "0.2.1"
 description = "Federated rare-disease consult: hospitals search their own records, an adversarial panel attacks the answers"
 license = { file = "LICENSE" }
 requires-python = ">=3.11,<4.0"
