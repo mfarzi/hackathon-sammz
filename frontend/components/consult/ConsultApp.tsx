@@ -9,6 +9,7 @@ import {
   SITES,
   type SiteId,
 } from "@/lib/consultScript";
+import { NhsHeader } from "./NhsHeader";
 import { ProgressRail } from "./ProgressRail";
 import { NetworkPanel, type NodeState } from "./NetworkPanel";
 import { Composer } from "./Composer";
@@ -178,32 +179,22 @@ export function ConsultApp() {
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-5 py-6">
-      <header className="mb-5 border-b border-rule pb-5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
-          Rare Disease Consult Network
-        </p>
-        <h1 className="mt-2 font-serif text-[26px] leading-tight text-ink">
-          Ask fifty hospitals. Move no records.
-        </h1>
-      </header>
+    <div className="min-h-dvh bg-nhs-grey-5 font-sans text-nhs-ink">
+      <NhsHeader />
+      <ProgressRail current={stageIndex} />
 
-      <div className="mb-5">
-        <ProgressRail current={stageIndex} />
-      </div>
-
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[340px_1fr]">
+      <div className="mx-auto grid max-w-[1400px] grid-cols-1 items-start gap-5 p-5 lg:grid-cols-[340px_1fr]">
         <NetworkPanel nodeStates={nodeStates} networkSummary={networkSummary} />
 
-        <main className="border border-rule bg-paper-raised">
-          <header className="flex items-baseline justify-between gap-4 border-b border-rule px-4 py-3">
-            <h2 className="font-serif text-[15px] font-normal text-ink">Consult</h2>
-            <span className="font-mono text-[11.5px] text-ink-muted">{calls} model calls</span>
+        <main className="border border-nhs-grey-4 bg-white">
+          <header className="flex items-baseline gap-2 border-b border-nhs-grey-4 px-4 py-3">
+            <h2 className="text-[15px] font-semibold text-nhs-ink">Consult</h2>
+            <span className="ml-auto font-mono text-[12px] text-nhs-grey-1">{calls} model calls</span>
           </header>
 
-          <div className="min-h-[400px] px-5 py-5">
+          <div className="min-h-[400px] px-5 py-[18px]">
             {messages.length === 0 ? (
-              <p className="border-l-4 border-ink-faint pl-3.5 font-serif text-[15px] text-ink-muted">
+              <p className="border-l-4 border-nhs-grey-3 pl-[14px] text-[15px] text-nhs-grey-1">
                 Describe the presentation in your own words, then start the consult. Every
                 hospital in the network will answer from its own records.
               </p>

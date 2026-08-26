@@ -1,4 +1,5 @@
 export { ConsultApp } from "./ConsultApp";
+export { NhsHeader } from "./NhsHeader";
 export { NetworkPanel } from "./NetworkPanel";
 export { SiteNode } from "./SiteNode";
 export { ProgressRail } from "./ProgressRail";

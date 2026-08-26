@@ -6,8 +6,8 @@ type ProgressRailProps = {
 
 export function ProgressRail({ current }: ProgressRailProps) {
   return (
-    <nav aria-label="Consult progress" className="border border-rule bg-paper-raised">
-      <ol className="flex overflow-x-auto">
+    <nav aria-label="Consult progress" className="border-b border-nhs-grey-4 bg-white">
+      <ol className="mx-auto flex max-w-[1400px] overflow-x-auto px-5">
         {STAGES.map((s, i) => {
           const isOn = i === current;
           const isDone = i < current;
@@ -16,22 +16,22 @@ export function ProgressRail({ current }: ProgressRailProps) {
               key={s.label}
               className={[
                 "min-w-[132px] flex-1 border-b-4 px-3.5 py-3",
-                isOn ? "border-ink" : isDone ? "border-stay" : "border-rule",
+                isOn ? "border-nhs-blue" : isDone ? "border-nhs-green" : "border-nhs-grey-4",
               ].join(" ")}
             >
               <p
                 className={[
-                  "font-mono text-[10px] uppercase tracking-[0.14em]",
-                  isOn ? "text-ink" : isDone ? "text-stay" : "text-ink-faint",
+                  "text-[11px] uppercase tracking-[0.09em]",
+                  isOn ? "font-semibold text-nhs-blue" : "text-nhs-grey-2",
                 ].join(" ")}
               >
                 {s.label}
-                {isDone ? " ✓" : ""}
+                {isDone ? <span className="text-nhs-green"> ✓</span> : null}
               </p>
               <p
                 className={[
-                  "mt-0.5 font-serif text-[13px] leading-tight",
-                  isOn ? "font-medium text-ink" : "text-ink-muted",
+                  "text-[13px] leading-tight",
+                  isOn ? "font-semibold text-nhs-ink" : "text-nhs-grey-1",
                 ].join(" ")}
               >
                 {s.detail}

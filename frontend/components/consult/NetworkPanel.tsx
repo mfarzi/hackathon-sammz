@@ -14,10 +14,10 @@ type NetworkPanelProps = {
 
 export function NetworkPanel({ nodeStates, networkSummary }: NetworkPanelProps) {
   return (
-    <aside aria-label="Hospital network" className="border border-rule bg-paper-raised">
-      <header className="flex items-baseline justify-between gap-4 border-b border-rule px-4 py-3">
-        <h2 className="font-serif text-[15px] font-normal text-ink">Network</h2>
-        <span className="font-mono text-[11.5px] text-ink-muted">{networkSummary}</span>
+    <aside aria-label="Hospital network" className="border border-nhs-grey-4 bg-white">
+      <header className="flex items-baseline gap-2 border-b border-nhs-grey-4 px-4 py-3">
+        <h2 className="text-[15px] font-semibold text-nhs-ink">Network</h2>
+        <span className="ml-auto font-mono text-[12px] text-nhs-grey-1">{networkSummary}</span>
       </header>
       <div>
         {SITES.map((site) => {
@@ -33,15 +33,13 @@ export function NetworkPanel({ nodeStates, networkSummary }: NetworkPanelProps) 
           );
         })}
       </div>
-      <div className="border-t border-rule px-4 py-3.5">
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-faint">
-          Nothing identifying leaves a site
-        </p>
-        <p className="mt-1.5 font-serif text-[13px] leading-relaxed text-ink-muted">
-          Sites return a judgement their own agent wrote. Record IDs and note text stay behind
-          the boundary. Open <b className="font-semibold text-ink">What crossed the wire</b> on
-          any reply to check.
-        </p>
+      <header className="border-t border-nhs-grey-4 px-4 py-3">
+        <h2 className="text-[13px] font-semibold text-nhs-ink">Nothing identifying leaves a site</h2>
+      </header>
+      <div className="px-4 pb-4 text-[13px] leading-normal text-nhs-grey-1">
+        Sites return a judgement their own agent wrote. Record IDs and note text stay behind
+        the boundary. Open <b className="font-semibold text-nhs-ink">What crossed the wire</b> on
+        any reply to check.
       </div>
     </aside>
   );

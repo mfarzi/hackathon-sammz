@@ -1,17 +1,17 @@
 import type { Candidate, LensVerdict } from "@/lib/consultScript";
 
 const TAG_CLASS: Record<Candidate["tag"], string> = {
-  survived: "bg-stay text-paper-raised",
-  killed: "bg-leave text-paper-raised",
-  unverified: "bg-ink-muted text-paper-raised",
-  planted: "bg-instrument text-instrument-ink",
+  survived: "bg-nhs-green text-white",
+  killed: "bg-nhs-red text-white",
+  unverified: "bg-nhs-grey-1 text-white",
+  planted: "bg-nhs-dark text-white",
 };
 
 const VERDICT_CLASS: Record<LensVerdict, string> = {
-  holds: "text-stay",
-  refutes: "text-leave",
-  dissents: "text-leave",
-  abstain: "text-ink-faint",
+  holds: "text-nhs-green",
+  refutes: "text-nhs-red",
+  dissents: "text-nhs-red",
+  abstain: "text-nhs-grey-2",
 };
 
 const VERDICT_LABEL: Record<LensVerdict, string> = {
@@ -23,34 +23,34 @@ const VERDICT_LABEL: Record<LensVerdict, string> = {
 
 export function CandidateCard({ candidate }: { candidate: Candidate }) {
   return (
-    <div className="mb-3 border border-rule bg-paper">
-      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-        <strong className="font-serif text-[16px] font-normal text-ink">{candidate.name}</strong>
+    <div className="mb-2.5 border border-nhs-grey-4">
+      <div className="flex flex-wrap items-center gap-[11px] px-[14px] py-[11px]">
+        <strong className="text-[15px] font-semibold text-nhs-ink">{candidate.name}</strong>
         <span
           className={[
-            "px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.06em]",
+            "px-[7px] py-[3px] text-[11px] font-bold uppercase tracking-[0.06em]",
             TAG_CLASS[candidate.tag],
           ].join(" ")}
         >
           {candidate.tagLabel}
         </span>
-        <span className="ml-auto font-mono text-[13px] text-ink-muted">{candidate.score}</span>
+        <span className="ml-auto font-mono text-[13px] text-nhs-grey-1">{candidate.score}</span>
       </div>
-      <div className="border-t border-rule px-4 py-3.5">
-        <p className="font-serif text-[14.5px] leading-relaxed text-ink-muted">{candidate.body}</p>
-        <p className="mt-2 font-mono text-[11.5px] text-ink-faint">{candidate.provenance}</p>
+      <div className="border-t border-nhs-grey-4 px-[14px] pb-3 pt-[11px] text-[14px] text-nhs-grey-1">
+        <p>{candidate.body}</p>
+        <p className="mt-[7px] font-mono text-[12px] text-nhs-grey-1">{candidate.provenance}</p>
         {candidate.dissent ? (
-          <p className="mt-2.5 border-l-2 border-ask pl-2.5 font-serif text-[13.5px] leading-snug text-ink-muted">
+          <p className="mt-[9px] border-l-[3px] border-nhs-yellow pl-[10px] text-[13px] leading-snug">
             {candidate.dissent}
           </p>
         ) : null}
-        <div className="mt-3 grid grid-cols-2 gap-px bg-rule sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-[10px] grid grid-cols-2 gap-px bg-nhs-grey-4 sm:grid-cols-3 lg:grid-cols-5">
           {candidate.lenses.map((l) => (
-            <div key={l.label} className="bg-paper-raised px-2.5 py-2">
-              <b className="block font-mono text-[9.5px] uppercase tracking-[0.07em] text-ink-muted">
+            <div key={l.label} className="bg-white px-[11px] py-[9px]">
+              <b className="mb-[3px] block text-[10px] uppercase tracking-[0.08em] text-nhs-grey-1">
                 {l.label}
               </b>
-              <span className={["font-mono text-[12px] font-semibold", VERDICT_CLASS[l.verdict]].join(" ")}>
+              <span className={["text-[12px] font-bold", VERDICT_CLASS[l.verdict]].join(" ")}>
                 {VERDICT_LABEL[l.verdict]}
               </span>
             </div>

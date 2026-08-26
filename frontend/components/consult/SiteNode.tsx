@@ -11,11 +11,11 @@ const STATUS_TEXT: Record<NodeStatus, string> = {
 };
 
 const STATUS_CLASS: Record<NodeStatus, { border: string; text: string; bg?: string }> = {
-  idle: { border: "border-l-rule", text: "text-ink-faint" },
-  searching: { border: "border-l-wait", text: "text-wait" },
-  answered: { border: "border-l-stay", text: "text-stay", bg: "bg-stay-soft" },
-  "no-data": { border: "border-l-ink-faint", text: "text-ink-muted", bg: "bg-paper" },
-  "follow-up": { border: "border-l-ask", text: "text-ask", bg: "bg-ask-soft" },
+  idle: { border: "border-l-nhs-grey-4", text: "text-nhs-grey-2" },
+  searching: { border: "border-l-nhs-aqua", text: "text-nhs-aqua" },
+  answered: { border: "border-l-nhs-green", text: "text-nhs-green", bg: "bg-nhs-green-soft" },
+  "no-data": { border: "border-l-nhs-grey-2", text: "text-nhs-grey-1", bg: "bg-nhs-grey-5" },
+  "follow-up": { border: "border-l-nhs-yellow", text: "text-nhs-yellow-ink", bg: "bg-nhs-yellow-soft" },
 };
 
 type SiteNodeProps = {
@@ -30,21 +30,23 @@ export function SiteNode({ site, status, matchLabel, matchPct }: SiteNodeProps) 
 
   return (
     <div
-      className={["border-b border-l-4 border-rule px-4 py-3.5", cls.border, cls.bg ?? ""].join(
-        " ",
-      )}
+      className={[
+        "border-b border-l-4 border-nhs-grey-4 px-4 py-3.5 last:border-b-0",
+        cls.border,
+        cls.bg ?? "",
+      ].join(" ")}
     >
       <div className="flex items-center gap-2">
-        <strong className="font-serif text-[14px] font-normal text-ink">{site.name}</strong>
+        <strong className="text-[14px] font-semibold text-nhs-ink">{site.name}</strong>
         <span
           className={[
-            "ml-auto whitespace-nowrap font-mono text-[11px] font-medium uppercase tracking-[0.07em]",
+            "ml-auto whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.07em]",
             cls.text,
           ].join(" ")}
         >
           {status === "searching" ? (
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 animate-pulse-dot rounded-full bg-wait" />
+              <span className="inline-block h-1.5 w-1.5 animate-pulse-dot rounded-full bg-nhs-aqua" />
               {STATUS_TEXT[status]}
             </span>
           ) : (
@@ -52,13 +54,13 @@ export function SiteNode({ site, status, matchLabel, matchPct }: SiteNodeProps) 
           )}
         </span>
       </div>
-      <p className="mt-0.5 font-mono text-[11px] text-ink-muted">{site.subtitle}</p>
+      <p className="mt-0.5 text-[12px] text-nhs-grey-1">{site.subtitle}</p>
       {matchLabel ? (
         <>
-          <p className="mt-2 font-mono text-[12px] text-ink-muted">{matchLabel}</p>
-          <div className="mt-1.5 h-1.5 bg-rule">
+          <p className="mt-2 font-mono text-[12px] text-nhs-grey-1">{matchLabel}</p>
+          <div className="mt-1.5 h-1.5 overflow-hidden bg-nhs-grey-4">
             <div
-              className="h-full bg-ink transition-[width] duration-500"
+              className="h-full bg-nhs-blue transition-[width] duration-500"
               style={{ width: `${matchPct ?? 0}%` }}
             />
           </div>
