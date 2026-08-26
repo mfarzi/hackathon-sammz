@@ -4,7 +4,7 @@ A clinician describes a patient nobody can place. Every hospital in the network
 checks its own records, reasons over its own notes, and answers — without a
 single patient record leaving the building.
 
-**Track 1 — Flower Agent Harness.** Collaborative Agent Hackathon, Cambridge,
+**Track 1 — SuperGrid.** Collaborative Agent Hackathon, Cambridge,
 26 August 2026. Built on the adversarial review panel in this repo.
 
 ## The problem is that the evidence is scattered

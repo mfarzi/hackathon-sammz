@@ -1,25 +1,142 @@
-# Synthetic multi-disease patient dataset — hackathon-sammz
+# Rare Disease Consult Network
 
-500 synthetic patient records, **11 diseases, all ages (0 to 86+, 32% paediatric)**,
-split across **three hospital sites**, built for the Rare Disease Consult Network
-demo ([hackathon-sammz](https://github.com/mfarzi/hackathon-sammz)).
+A Flower federation where a clinician consults every hospital at once about a
+patient nobody can place — and an adversarial panel attacks the answers before
+they reach anyone.
 
-All data is synthetic (seeded random generation) — **no real patient data** —
-and must not be used for clinical purposes.
+**Track 1 — SuperGrid.** Collaborative Agent Hackathon, Cambridge,
+26 August 2026.
 
-## Collaboration layout
+## The idea
 
-| Path | Owner | Contents |
-| --- | --- | --- |
-| `review_panel/` | backend / agent | Flower AgentApp orchestration |
-| `fixtures/` | backend | Demo code under review (`buggy_cart`) |
-| `tests/` | backend | Offline panel tests |
-| `pyproject.toml`, `uv.lock` | backend | Python deps |
-| `frontend/` | frontend | Next.js design system + UI |
+A rare disease is rare at any one hospital and not rare across fifty. The
+consultant seeing an unusual presentation has one or two comparable cases in
+living memory and no way to reach the three sitting in a hospital two hundred
+miles away. The data that would settle the question exists; it is just
+distributed, and it cannot be centralised, because it is patient records.
 
-Prefer working in different top-level folders to avoid merge conflicts.
+So the query travels instead of the data.
 
-## Frontend (design system)
+```
+ ┌──────────────┐                ┌ hospital site ──────────── ×N, in parallel ┐
+ │  hub agent   │                │                                            │
+ │              │─ symptom set ─►│  patient records ──reads──► site agent     │
+ │  ServerApp   │  + brackets    │  notes, symptoms            ClientApp      │
+ │  + panel     │                │                                            │
+ │              │◄─ disease ─────│                                            │
+ │              │   score, count │  never leaves this box:                    │
+ │              │   + abstraction│  record_id · free text · anything          │
+ │              │                │  identifying                               │
+ │              │─ follow-up ───►│                                            │
+ └──────────────┘  "K-F rings?"  └────────────────────────────────────────────┘
+```
+
+Six stages: the clinician's description is parsed into a structured query; it
+fans out to every hospital at once; each site searches its own records and its
+own agent reads the matching notes locally; the hub asks one targeted follow-up
+it could not have known to ask at the start; the panel attacks what came back;
+the master reports what survived.
+
+## The site agent is the privacy boundary
+
+The obvious way to protect the free-text notes is to refuse to send them. That
+also throws away the clinical richness — the temporal course, the response to
+treatment, the finding that was notably absent — which is most of what
+distinguishes a rare disease from a common one.
+
+Putting a reading agent inside the hospital keeps both. The note never moves,
+and its content still reaches the network as an abstraction the site wrote:
+*"all four of our cases showed slit-lamp-confirmed Kayser–Fleischer rings; none
+had fever at onset."* What crosses the wire is a judgement, not a record.
+
+`_strip_for_wire` is an allowlist rather than a blocklist, so a field added to
+the record format later cannot leak by being forgotten.
+
+## Case count is provenance, not strength
+
+The corpus is wildly uneven — 3,528 cases of community-acquired pneumonia, 8 of
+addisonian crisis. Any score that scales with the number of matching patients
+hands the top of the list to whatever is best published, which is the exact
+opposite of the point.
+
+So ranking uses the **mean of the network's best three similarity scores**,
+taking fewer if fewer exist and never padding with zeros. One case at 0.80 beats
+a hundred cases topping out at 0.80 / 0.79 / 0.78. Case count travels as
+provenance and never touches the score; it is labelled as such in every prompt,
+so a lens cannot quietly read volume as evidence.
+
+Similarity itself is deliberately dumb — Jaccard overlap of symptom sets,
+computed by identical code at every site. It has to be: sites are separate
+processes in separate institutions, and if each scored with its own model call,
+a 0.85 from one and a 0.85 from another would not be the same claim. Retrieval
+decides what gets discussed. The agents decide what it means.
+
+## The panel never converges by discussion
+
+Five lens agents assess the network's candidates independently and in parallel,
+each with a disjoint mandate — symptom fit, demographic plausibility, common
+explanations, evidence quality, contradicting evidence. None can see the others.
+
+Then every candidate is attacked by three lenses, each told to **refute rather
+than discuss**, each defaulting to *refuted* when uncertain, each still blind to
+the other verdicts. The burden of proof sits with the candidate. A candidate
+dies on a majority of refutations.
+
+Showing round-1 results to all five and asking them to agree would correlate
+their judgements and turn consensus into a measure of contagion rather than
+correctness. That matters more here than in code review, because anchoring on
+the first plausible diagnosis is the classic way a differential goes wrong.
+
+Agreement must not reduce scrutiny either. Refuters are drawn first from lenses
+with no stake in a candidate, but the count is always filled — topping up from
+the lenses that raised it when too few disinterested ones remain. Without that,
+a candidate raised by four of five lenses drew a single verdict, fell below
+`min-votes`, and was reported as *unverified*: the best-corroborated finding
+getting the least scrutiny, which inverts the whole point of running round 1
+blind.
+
+## The calibration probe
+
+A panel that never rejects anything is indistinguishable from a rubber stamp,
+and "it survived refutation" then carries no information.
+
+So one **known-false candidate** rides through round 2 alongside the real ones,
+indistinguishable to the refuters. It asserts multi-site support for a disease no
+site reported at all — checkable against the evidence, and wrong. If the refuters
+kill it, the run's verdicts mean something. If it survives, the report leads with
+a calibration failure and says plainly that the other verdicts should not be
+trusted.
+
+The system measures its own reliability on every run, and reports the answer
+whether or not it is flattering.
+
+## Safety and oversight
+
+Not retrofitted — it is what the architecture is for.
+
+- **Nothing identifying leaves a hospital.** Record identifiers and free-text
+  notes are read locally and dropped; only an allowlist of fields is ever copied
+  onto the wire.
+- **Every verdict is attributable.** Which lens raised a candidate, which
+  attacked it, how each voted, and their reasoning all reach the report.
+- **Dissent survives to the output.** A 1-of-3 split is never presented as
+  unanimous.
+- **Thin evidence is labelled, not counted.** A candidate drawing fewer than
+  `min-votes` verdicts is reported as *unverified* rather than as a survivor. A
+  refuter that crashed cast no vote and is never read as agreement.
+- **No silent truncation.** Diseases trimmed by the per-site cap, candidates
+  dropped by the candidate cap, lenses that failed, and sites that never answered
+  are all stated in the report. A site that did not reply is never counted as a
+  site that found nothing.
+- **The vocabulary is closed.** An unconstrained parse produces plausible
+  synonyms that match no record, and an empty consult looks identical to one that
+  genuinely found nothing. Symptoms are mapped onto a shared vocabulary and
+  anything unrecognised is reported, not dropped in silence.
+- **It advises, it does not diagnose.** Every prompt says so, and the report
+  describes case counts as leads to investigate rather than proof.
+- **The system flags its own unreliability** via the calibration probe.
+
+## Running it
 
 ```bash
 cd frontend

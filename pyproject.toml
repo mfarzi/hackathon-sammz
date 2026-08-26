@@ -10,7 +10,7 @@ requires-python = ">=3.11,<4.0"
 dependencies = ["flwr>=1.35.0,<2.0", "openai>=2.16.0,<3.0.0", "ray>=2.9"]
 
 [tool.flwr.app]
-publisher = "local"
+publisher = "zenos"
 fab-format-version = 1
 flwr-version-target = "1.35.0"
 # Patient records are deliberately NOT shipped in the FAB. Each hospital node

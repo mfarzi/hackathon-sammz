@@ -5,3 +5,10 @@ __pycache__/
 *.fab
 .DS_Store
 .env
+
+# Patient records: too large for Flower Hub (1MB/file) and the whole point is
+# that they stay at the hospital. Each node mounts its own from data-dir.
+data/
+
+# SuperNode identity keys
+docker/keys/
