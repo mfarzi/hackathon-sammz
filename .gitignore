@@ -36,3 +36,10 @@ frontend/coverage/
 /patients_500.json
 /patients_500.jsonl
 /patients_500.csv
+/console_template.html
+/generate_dataset.py
+
+# Lockfiles: neither is needed for the Hub listing - `flwr build` resolves
+# deps from pyproject.toml directly, and the frontend isn't a Flower app.
+uv.lock
+frontend/package-lock.json
