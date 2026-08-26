@@ -14,6 +14,7 @@ its clinical content still reaches the network as a judgement the site authored.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from flwr.app import Context, Message
@@ -30,6 +31,21 @@ app = ClientApp()
 # Diseases the site agent writes an abstraction for. The rest travel as scores
 # and symptom names, which is enough for the panel to weigh them.
 ABSTRACT_TOP = 3
+
+
+def _apply_api_key(context: Context) -> None:
+    """Take a model key from the run config, if one was supplied.
+
+    `flwr run` has no environment passthrough, so a deployment where the Flower
+    runtime does not supply model credentials has only the run config to carry
+    them. The key then travels with the run and is visible in its metadata on
+    whoever hosts the SuperLink - treat any key sent this way as disclosed, and
+    rotate it afterwards. Locally, prefer OPENAI_API_KEY or a .env file and
+    leave this unset.
+    """
+    key = context.run_config.get("panel.api-key")
+    if isinstance(key, str) and key.strip():
+        os.environ["OPENAI_API_KEY"] = key.strip()
 
 
 def _site_name(context: Context) -> str:
@@ -141,6 +157,7 @@ def _read_notes(client, model: str, site: str, query: dict, entries: list[dict])
 @app.query("consult")
 def consult(message: Message, context: Context) -> Message:
     """Search this hospital's records and report what it found."""
+    _apply_api_key(context)
     query = unpack(message)
     site = _site_name(context)
     model = str(context.run_config.get("panel.model", "openai/gpt-5.6-sol"))
@@ -184,6 +201,7 @@ def consult(message: Message, context: Context) -> Message:
 @app.query("followup")
 def followup(message: Message, context: Context) -> Message:
     """Answer one targeted question from the hub, from this site's records."""
+    _apply_api_key(context)
     payload = unpack(message)
     site = _site_name(context)
     model = str(context.run_config.get("panel.model", "openai/gpt-5.6-sol"))

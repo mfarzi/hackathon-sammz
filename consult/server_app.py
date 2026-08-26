@@ -11,6 +11,7 @@ what is true. The panel decides what it means.
 
 from __future__ import annotations
 
+import os
 import re
 import time
 from typing import Any
@@ -37,6 +38,21 @@ DEFAULT_CASE = (
     "change, then seizures and abnormal involuntary facial movements. Persistently "
     "afebrile. Extensive infection screen negative."
 )
+
+
+def _apply_api_key(context: Context) -> None:
+    """Take a model key from the run config, if one was supplied.
+
+    `flwr run` has no environment passthrough, so a deployment where the Flower
+    runtime does not supply model credentials has only the run config to carry
+    them. The key then travels with the run and is visible in its metadata on
+    whoever hosts the SuperLink - treat any key sent this way as disclosed, and
+    rotate it afterwards. Locally, prefer OPENAI_API_KEY or a .env file and
+    leave this unset.
+    """
+    key = context.run_config.get("panel.api-key")
+    if isinstance(key, str) and key.strip():
+        os.environ["OPENAI_API_KEY"] = key.strip()
 
 
 def _cfg_str(context: Context, key: str, default: str) -> str:
@@ -292,6 +308,7 @@ def main(grid: Grid, context: Context) -> None:
     # with no model calls at all. It is how you check the network works, and how
     # you demo it without spending a token.
     dry_run = _cfg_bool(context, "consult.dry-run", False)
+    _apply_api_key(context)
     print(f"[hub] model runtime from Flower: {runtime_is_available()}")
     if dry_run:
         print("[hub] DRY RUN: retrieval and ranking only, no agents, no panel")

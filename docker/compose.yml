@@ -1,0 +1,114 @@
+# Five hospitals, each a SuperNode connected outward to Flower SuperGrid.
+#
+# SuperGrid is the SuperLink and runs the ServerApp, so there is no hub container
+# here: `flwr run . supergrid --federation @zenos/personal` submits the app and
+# SuperGrid dispatches to whichever of these nodes are online.
+#
+# The records never go to SuperGrid. They are too large for the Hub's 1MB limit
+# and they are patient notes, so the nodes come to the data instead: each
+# container mounts ONLY its own hospital's file, read-only. hospital-2 has no
+# filesystem path to hospital 3's patients.
+#
+#   docker compose -f docker/compose.yml up --build -d
+#   ./ask --federation supergrid "months of tremor and jaundice"
+
+name: consult-network
+
+x-hospital: &hospital
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+    args:
+      FLWR_VERSION: ${FLWR_VERSION:-1.35.0}
+  # Site agents call a model when they read their own notes.
+  env_file:
+    - ../.env
+  restart: on-failure:3
+  stop_signal: SIGINT
+
+services:
+  hospital-1:
+    <<: *hospital
+    entrypoint: ["flower-supernode"]
+    command:
+      - --superlink
+      - supergrid.flower.ai:9092
+      - --auth-supernode-private-key
+      - /keys/hospital_1
+      - --node-config
+      - site-name="hospital_1" records-path="/data/hospital_1.jsonl" partition-id=0 num-partitions=5
+      - --isolation
+      - subprocess
+    volumes:
+      # This hospital's records and its own identity key. Nothing else.
+      - ../data/hospital_1.jsonl:/data/hospital_1.jsonl:ro
+      - ./keys/hospital_1:/keys/hospital_1:ro
+
+  hospital-2:
+    <<: *hospital
+    entrypoint: ["flower-supernode"]
+    command:
+      - --superlink
+      - supergrid.flower.ai:9092
+      - --auth-supernode-private-key
+      - /keys/hospital_2
+      - --node-config
+      - site-name="hospital_2" records-path="/data/hospital_2.jsonl" partition-id=1 num-partitions=5
+      - --isolation
+      - subprocess
+    volumes:
+      # This hospital's records and its own identity key. Nothing else.
+      - ../data/hospital_2.jsonl:/data/hospital_2.jsonl:ro
+      - ./keys/hospital_2:/keys/hospital_2:ro
+
+  hospital-3:
+    <<: *hospital
+    entrypoint: ["flower-supernode"]
+    command:
+      - --superlink
+      - supergrid.flower.ai:9092
+      - --auth-supernode-private-key
+      - /keys/hospital_3
+      - --node-config
+      - site-name="hospital_3" records-path="/data/hospital_3.jsonl" partition-id=2 num-partitions=5
+      - --isolation
+      - subprocess
+    volumes:
+      # This hospital's records and its own identity key. Nothing else.
+      - ../data/hospital_3.jsonl:/data/hospital_3.jsonl:ro
+      - ./keys/hospital_3:/keys/hospital_3:ro
+
+  hospital-4:
+    <<: *hospital
+    entrypoint: ["flower-supernode"]
+    command:
+      - --superlink
+      - supergrid.flower.ai:9092
+      - --auth-supernode-private-key
+      - /keys/hospital_4
+      - --node-config
+      - site-name="hospital_4" records-path="/data/hospital_4.jsonl" partition-id=3 num-partitions=5
+      - --isolation
+      - subprocess
+    volumes:
+      # This hospital's records and its own identity key. Nothing else.
+      - ../data/hospital_4.jsonl:/data/hospital_4.jsonl:ro
+      - ./keys/hospital_4:/keys/hospital_4:ro
+
+  hospital-5:
+    <<: *hospital
+    entrypoint: ["flower-supernode"]
+    command:
+      - --superlink
+      - supergrid.flower.ai:9092
+      - --auth-supernode-private-key
+      - /keys/hospital_5
+      - --node-config
+      - site-name="hospital_5" records-path="/data/hospital_5.jsonl" partition-id=4 num-partitions=5
+      - --isolation
+      - subprocess
+    volumes:
+      # This hospital's records and its own identity key. Nothing else.
+      - ../data/hospital_5.jsonl:/data/hospital_5.jsonl:ro
+      - ./keys/hospital_5:/keys/hospital_5:ro
+

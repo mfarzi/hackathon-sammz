@@ -16,7 +16,16 @@ flwr-version-target = "1.35.0"
 # Patient records are deliberately NOT shipped in the FAB. Each hospital node
 # reads its own from `consult.data-dir`; that is the whole point of the design,
 # and a 33MB bundle of clinical notes travelling with the app would contradict it.
-fab-include = ["consult/**/*.py", "consult/*.json", "review_panel/**/*.py", "fixtures/**/*.py", "LICENSE"]
+fab-include = [
+  "consult/**/*.py",
+  "consult/*.json",
+  # A sampled corpus that fits SuperGrid and the Hub's 1MB-per-file limit. Every
+  # rare disease is kept whole and the common ones are thinned, so the long tail
+  # the ranking rule exists for survives the shrink. Full records stay local.
+  "consult/sample_data/*.jsonl",
+  "review_panel/**/*.py",
+  "LICENSE",
+]
 
 [tool.flwr.app.config.agent]
 input = ""
@@ -26,7 +35,7 @@ input = ""
 case = ""
 # Where each hospital node reads its records from. Absolute path, or relative to
 # the app root. A node reads "<data-dir>/<site-name>.jsonl".
-data-dir = "data"
+data-dir = "consult/sample_data"
 # Ask one targeted follow-up question after the first round.
 followup = true
 # Retrieval and ranking only: no agents, no panel, no model calls. Proves the
@@ -40,6 +49,10 @@ age-bracket = ""
 [tool.flwr.app.config.panel]
 # Model ref used by every panel member and the master.
 model = "openai/gpt-5.6-sol"
+# Only for deployments where the runtime supplies no model credentials. The key
+# travels with the run and is visible in its metadata - rotate anything sent
+# this way. Locally, use OPENAI_API_KEY or a .env file and leave this empty.
+api-key = ""
 # Max candidates each lens may raise in round 1.
 max-findings-per-lens = 3
 # Max candidates carried into the refutation round, after dedup.
