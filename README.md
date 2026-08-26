@@ -6,6 +6,28 @@ its own findings before reporting them.
 **Track 1 — Flower Agent Harness.** Collaborative Agent Hackathon, Cambridge,
 26 August 2026.
 
+## Collaboration layout
+
+| Path | Owner | Contents |
+| --- | --- | --- |
+| `review_panel/` | backend / agent | Flower AgentApp orchestration |
+| `fixtures/` | backend | Demo code under review (`buggy_cart`) |
+| `tests/` | backend | Offline panel tests |
+| `pyproject.toml`, `uv.lock` | backend | Python deps |
+| `frontend/` | frontend | Next.js design system + UI |
+
+Prefer working in different top-level folders to avoid merge conflicts.
+
+## Frontend (design system)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:3000 for the token specimen. Product screens come next.
+
 ## The idea
 
 Most multi-agent review systems fan out, collect opinions, and let the agents
@@ -145,6 +167,7 @@ review_panel/lenses.py      the five mandates and both rounds' prompts
 review_panel/model.py       runtime-bound OpenAI client, JSON schemas
 fixtures/buggy_cart/        demo target: real defects and unlabelled traps
 tests/test_panel.py         offline checks
+frontend/                   Next.js design system (App Router)
 ```
 
 ## Built on

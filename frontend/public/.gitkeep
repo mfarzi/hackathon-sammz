@@ -1,0 +1,19 @@
+# Ask the network — web
+
+Next.js App Router scaffold for the clinical-instrument design system.
+
+## Run
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) for the token specimen.
+
+## Structure
+
+- `app/` — layout, globals, specimen page
+- `components/ds/` — Button, CodeChip, Panel, DisclosureRail, TypeSpecimen
+- `lib/tokens.ts` — typed token names
