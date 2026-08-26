@@ -28,3 +28,11 @@ frontend/coverage/
 /site_a.jsonl
 /site_b.jsonl
 /site_c.jsonl
+
+# Presentation/preview artifacts, not part of the Flower app.
+*.key
+/dataset_preview.html
+/consult_console.html
+/patients_500.json
+/patients_500.jsonl
+/patients_500.csv
