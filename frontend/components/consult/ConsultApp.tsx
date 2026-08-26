@@ -186,6 +186,12 @@ export function ConsultApp() {
         <h1 className="mt-2 font-serif text-[26px] leading-tight text-ink">
           Ask fifty hospitals. Move no records.
         </h1>
+        <a
+          href="/live"
+          className="mt-2 inline-block font-mono text-[12px] uppercase tracking-[0.08em] text-ink-muted underline decoration-ink-faint underline-offset-2"
+        >
+          Run a real consult →
+        </a>
       </header>
 
       <div className="mb-5">

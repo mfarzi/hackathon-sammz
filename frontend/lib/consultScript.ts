@@ -198,11 +198,11 @@ export const CANDIDATES: Candidate[] = [
     dissent:
       "Dissent carried: the negative-findings reviewer notes no site reported ANCA status, so serology is assumed rather than shown.",
     lenses: [
-      { label: "Temporal course", verdict: "holds" },
-      { label: "Negative findings", verdict: "dissents" },
-      { label: "Demographic fit", verdict: "holds" },
-      { label: "Alternatives", verdict: "holds" },
-      { label: "Evidence sufficiency", verdict: "holds" },
+      { label: "Symptom fit", verdict: "holds" },
+      { label: "Contradicting evidence", verdict: "dissents" },
+      { label: "Demographic plausibility", verdict: "holds" },
+      { label: "Common explanations", verdict: "holds" },
+      { label: "Evidence quality", verdict: "holds" },
     ],
   },
   {
@@ -213,11 +213,11 @@ export const CANDIDATES: Candidate[] = [
     body: "Only two reviewers returned a verdict before the round closed. Not read as agreement.",
     provenance: "top-3 mean 0.71 · 2 cases across 2 sites",
     lenses: [
-      { label: "Temporal course", verdict: "abstain" },
-      { label: "Negative findings", verdict: "holds" },
-      { label: "Demographic fit", verdict: "abstain" },
-      { label: "Alternatives", verdict: "refutes" },
-      { label: "Evidence sufficiency", verdict: "abstain" },
+      { label: "Symptom fit", verdict: "abstain" },
+      { label: "Contradicting evidence", verdict: "holds" },
+      { label: "Demographic plausibility", verdict: "abstain" },
+      { label: "Common explanations", verdict: "refutes" },
+      { label: "Evidence quality", verdict: "abstain" },
     ],
   },
   {
@@ -228,11 +228,11 @@ export const CANDIDATES: Candidate[] = [
     body: "Refuted 3–0. The Children's Hospital case tested negative for anti-GBM antibodies, and the sinonasal disease preceding renal involvement by weeks does not fit the usual course.",
     provenance: "top-3 mean 0.68 · 1 case, 1 site",
     lenses: [
-      { label: "Temporal course", verdict: "refutes" },
-      { label: "Negative findings", verdict: "refutes" },
-      { label: "Demographic fit", verdict: "holds" },
-      { label: "Alternatives", verdict: "refutes" },
-      { label: "Evidence sufficiency", verdict: "abstain" },
+      { label: "Symptom fit", verdict: "refutes" },
+      { label: "Contradicting evidence", verdict: "refutes" },
+      { label: "Demographic plausibility", verdict: "holds" },
+      { label: "Common explanations", verdict: "refutes" },
+      { label: "Evidence quality", verdict: "abstain" },
     ],
   },
   {
@@ -243,11 +243,11 @@ export const CANDIDATES: Candidate[] = [
     body: "Not a real entity. Inserted indistinguishably to test whether the panel can still say no. Rejected 3–0 for having no case series behind it at any site.",
     provenance: "calibration probe · never counted toward the diagnosis",
     lenses: [
-      { label: "Temporal course", verdict: "refutes" },
-      { label: "Negative findings", verdict: "refutes" },
-      { label: "Demographic fit", verdict: "abstain" },
-      { label: "Alternatives", verdict: "refutes" },
-      { label: "Evidence sufficiency", verdict: "refutes" },
+      { label: "Symptom fit", verdict: "refutes" },
+      { label: "Contradicting evidence", verdict: "refutes" },
+      { label: "Demographic plausibility", verdict: "abstain" },
+      { label: "Common explanations", verdict: "refutes" },
+      { label: "Evidence quality", verdict: "refutes" },
     ],
   },
 ];
