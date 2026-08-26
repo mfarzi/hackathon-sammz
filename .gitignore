@@ -4,3 +4,4 @@ __pycache__/
 .flwr/
 *.fab
 .DS_Store
+.env
