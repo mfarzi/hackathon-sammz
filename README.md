@@ -17,19 +17,9 @@ distributed, and it cannot be centralised, because it is patient records.
 
 So the query travels instead of the data.
 
-```
- ┌──────────────┐                ┌ hospital site ──────────── ×N, in parallel ┐
- │  hub agent   │                │                                            │
- │              │─ symptom set ─►│  patient records ──reads──► site agent     │
- │  ServerApp   │  + brackets    │  notes, symptoms            ClientApp      │
- │  + panel     │                │                                            │
- │              │◄─ disease ─────│                                            │
- │              │   score, count │  never leaves this box:                    │
- │              │   + abstraction│  record_id · free text · anything          │
- │              │                │  identifying                               │
- │              │─ follow-up ───►│                                            │
- └──────────────┘  "K-F rings?"  └────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="docs/dataflow.svg" alt="The clinician's query fans out to every hospital; each site reads its own notes locally and returns an abstraction; record identifiers and free text never cross the boundary." width="100%">
+</p>
 
 Six stages: the clinician's description is parsed into a structured query; it
 fans out to every hospital at once; each site searches its own records and its
@@ -138,15 +128,127 @@ Not retrofitted — it is what the architecture is for.
 
 ## Running it
 
+Five simulated hospitals on one machine:
+
+```bash
+export PATH="$PWD/.venv/bin:$PATH"   # flwr launches flower-superlink from PATH
+
+# once: the simulation defaults to 2 SuperNodes since flwr 1.32, and this
+# project needs one per hospital
+flwr federation simulation-config @none/default local --num-supernodes 5
+
+CASE='Woman in her twenties, months of worsening tremor and slurred speech, with a marked change in mood and behaviour noted by family. Jaundiced on examination. Persistently tired. No fever.'
+
+flwr run . local --stream --run-config \
+  "panel.model='gpt-5.6-sol' consult.case='$CASE'"
+```
+
+Three things that must be right:
+
+- **Five SuperNodes, or five hospitals become two.** The federation config moved
+  out of `pyproject.toml` into the Flower configuration file, so the old
+  `options.num-supernodes = 5` no longer applies. Set it once with the command
+  above; otherwise the consult silently runs on two sites.
+- `panel.model` needs the bare model id when running against the OpenAI API
+  directly; the `openai/` prefix in the default is a Flower runtime ref.
+- `.venv/bin` must be on `PATH`, or `flwr` cannot launch `flower-superlink`.
+
+Credentials come from `OPENAI_API_KEY`, found either in the environment or in a
+`.env` file at or above the working directory. Flower runs the ServerApp and each
+ClientApp as separate processes and a SuperLink started earlier will not inherit
+a later `export`, so the app looks for the file itself rather than depending on
+launch order. Where no runtime credentials exist at all, `panel.api-key` can
+carry a key in the run config — it is visible in run metadata wherever the
+SuperLink is hosted, so rotate anything sent that way.
+
+### Rehearsing without spending a token
+
+```bash
+flwr run . local --stream --run-config \
+  "consult.dry-run=true consult.symptoms='jaundice,tremor,dysarthria,mood_change,fatigue'"
+```
+
+Fan-out, per-site search, and ranking, with no agents and no panel. Proves the
+federation works and takes about 21 seconds.
+
+### Configuration
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `consult.case` | *(built-in example)* | The clinician's description, in plain language |
+| `consult.data-dir` | `consult/sample_data` | Where each node reads `<site-name>.jsonl` |
+| `consult.symptoms` | `""` | Skip the parse with an explicit comma-separated list |
+| `consult.followup` | `true` | Ask one targeted follow-up after round 1 |
+| `consult.dry-run` | `false` | Retrieval and ranking only; no model calls |
+| `panel.model` | `openai/gpt-5.6-sol` | Model ref for every agent |
+| `panel.api-key` | `""` | Model key for deployments where the runtime supplies none |
+| `panel.max-candidates` | `5` | Candidates carried into round 2 |
+| `panel.refuters-per-finding` | `3` | Independent attackers per candidate |
+| `panel.min-votes` | `2` | Verdicts needed before survival counts |
+| `panel.canary` | `true` | Run the calibration probe |
+
+Roughly 30 model calls across two network round-trips.
+
+### On SuperGrid
+
+The venue network blocks 9092/9093, so SuperNodes cannot reach the Fleet API and
+the deployment federation is unreachable from here. Runs go to SuperGrid's
+simulation federation over 443 instead. That is why `consult/sample_data`
+exists: the full corpus is 33 MB with an 11.9 MB largest file, and both the Hub
+and the FAB are far smaller than that. Sampling keeps every rare disease whole
+and thins the common ones, so the long tail the ranking rule exists for survives
+the shrink. `docker/` holds a container per hospital.
+
+## A worked run
+
+A woman in her twenties with months of tremor, slurred speech, behavioural
+change, and jaundice. Five hospitals, 1,689 sampled records, retrieval and
+ranking only:
+
+```
+wilson_disease                        0.500 |  10 cases | all five sites
+hypothyroidism                        0.200 |   6 cases | two sites
+thrombotic_thrombocytopenic_purpura   0.200 |   1 case  | one site
+iron_deficiency_anaemia               0.178 |   8 cases | two sites
+```
+
+Two things to read off it. Wilson disease sits top at 0.500, contributed by all
+five hospitals at two cases each — no single site holds enough to call it, and
+together they do. And one case at 0.200 outranks eight at 0.178: case count
+travels as provenance and never touches the score.
+
+On the full 75,001-record corpus the same case put Wilson at 0.405 on 7 cases
+above iron-deficiency anaemia on 178, a starker inversion. Sampling thins the
+common diseases, so the gap narrows while the ordering rule holds.
+
+## Tests
+
+```bash
+PYTHONPATH=. python tests/test_consult.py   # 64 checks
+PYTHONPATH=. python tests/test_panel.py     # 46 checks, the original panel
+```
+
+Offline, no model calls. They cover the rules the claims rest on: that count
+never drives ranking, that nothing identifying reaches the wire, that a candidate
+is never silently promoted to survivor, and that agreement never shrinks the
+refuter pool.
+
+## Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000 for the token specimen. Product screens come next.
+Open http://localhost:3000 for the token specimen.
 
-## The idea
+## The synthetic 500-record dataset
+
+A separate seeded corpus — 500 records, 11 diseases, three sites — built for the
+console UI. Distinct from `consult/sample_data`, which is what the federation
+reads.
+
 ## Files
 
 | File | Description |
@@ -201,21 +303,25 @@ site A correctly answers NO DATA.
 python3 generate_dataset.py            # reproducible, seed 20260826
 python3 generate_dataset.py --seed 7   # different dataset
 ```
-review_panel/agent_app.py   orchestration, dedupe, vote accounting, report
-review_panel/lenses.py      the five mandates and both rounds' prompts
-review_panel/model.py       runtime-bound OpenAI client, JSON schemas
-fixtures/buggy_cart/        demo target: real defects and unlabelled traps
-tests/test_panel.py         offline checks
-frontend/                   Next.js design system (App Router)
-consult/server_app.py    hub: parse, fan-out, follow-up hop, panel, report
-consult/client_app.py    hospital site: search, local note reading, follow-up
-consult/panel.py         five blind lenses, refutation, calibration probe
-consult/lenses.py        the five diagnostic mandates and both rounds' prompts
-consult/scoring.py       similarity and the top-3-mean network ranking
-consult/records.py       per-site retrieval; notes stay local
-consult/vocabulary.py    the closed symptom vocabulary and the parse constraint
-consult/protocol.py      what travels between hub and sites
-review_panel/            the code-review panel this was retargeted from
+
+## Layout
+
+```
+consult/server_app.py     hub: parse, fan-out, follow-up hop, panel, report
+consult/client_app.py     hospital site: search, local note reading, follow-up
+consult/panel.py          five blind lenses, refutation, calibration probe
+consult/lenses.py         the five diagnostic mandates and both rounds' prompts
+consult/scoring.py        similarity and the top-3-mean network ranking
+consult/records.py        per-site retrieval; notes stay local
+consult/vocabulary.py     the closed symptom vocabulary and the parse constraint
+consult/protocol.py       what travels between hub and sites
+consult/sample_data/      the sampled corpus the federation reads
+data/                     the full 75,001-record corpus
+docker/                   a container per hospital
+docs/dataflow.svg         the data flow diagram above
+frontend/                 Next.js design system (App Router)
+review_panel/             the code-review panel this was retargeted from
+tests/                    offline checks for both
 ```
 
 ## Built on
@@ -229,7 +335,7 @@ Local simulation needs Python ≤ 3.13 and `ray`, which is why `ray` is named
 explicitly in the dependencies — Flower's runtime env installs exactly what the
 app declares.
 
-One thing still untested: a ServerApp running locally gets no model credentials
-from the Flower runtime (`FLWR_RUNTIME_BASE_URL` is unset), so runs here go
-through the OpenAI API directly. Whether SuperGrid supplies them to a ServerApp
-has not been confirmed.
+A ServerApp gets no model credentials from the Flower runtime, so runs go
+through the OpenAI API directly — from the environment, a `.env` file, or
+`panel.api-key`. The deployment federation is unreachable from the venue
+(9092/9093 blocked), so runs use SuperGrid's simulation federation over 443.
