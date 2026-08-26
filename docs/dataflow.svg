@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 640" width="1760" height="640" role="img" aria-label="Data flow: the query travels to every hospital, patient records never leave">
+  <defs>
+    <style>
+      .t   { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+      .kick{ font-weight: 700; font-size: 15px; letter-spacing: .09em; }
+      .ttl { font-weight: 700; font-size: 21px; }
+      .sub { font-size: 16px; }
+      .lbl { font-size: 15px; }
+      .cap { font-size: 15px; }
+      .ink { fill: #1F1A20; }
+      .gry { fill: #8A8A8A; }
+      .blu { fill: #7FA4DC; }
+      .red { fill: #BE5348; }
+      .card{ fill: #FFFFFF; stroke: #E4E4DD; stroke-width: 1.5; }
+      .flow{ stroke: #1F1A20; stroke-width: 1.6; fill: none; }
+      .thin{ stroke: #B9B9B1; stroke-width: 1.4; fill: none; }
+    </style>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1F1A20"/>
+    </marker>
+    <marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#B9B9B1"/>
+    </marker>
+  </defs>
+
+  <rect width="1760" height="640" fill="#F7F7F2"/>
+
+  <!-- clinician -->
+  <rect class="card" x="30" y="22" width="600" height="62" rx="12"/>
+  <text class="t kick blu" x="54" y="48">CLINICIAN</text>
+  <text class="t sub gry" x="150" y="49">describes the case in plain language</text>
+  <path class="flow" d="M 330 84 L 330 106" marker-end="url(#ah)"/>
+
+  <!-- hub -->
+  <rect x="30" y="112" width="600" height="466" rx="14" fill="#FFFFFF" stroke="#D7D7CF" stroke-width="1.5"/>
+  <text class="t kick ink" x="54" y="142">HUB</text>
+  <text class="t sub gry" x="100" y="142">ServerApp · one process</text>
+
+  <rect class="card" x="54" y="158" width="552" height="80" rx="10"/>
+  <text class="t kick blu" x="76" y="184">1 · PARSE</text>
+  <text class="t ttl ink" x="76" y="211">Words → structured query</text>
+  <text class="t sub gry" x="76" y="231">symptom set · age bracket · sex</text>
+
+  <rect class="card" x="54" y="300" width="552" height="80" rx="10"/>
+  <text class="t kick blu" x="76" y="326">4 · RANK<tspan class="gry" dx="10">deterministic</tspan></text>
+  <text class="t ttl ink" x="76" y="353">Mean of the best three scores</text>
+  <text class="t sub gry" x="76" y="373">case count is provenance, never strength</text>
+
+  <rect class="card" x="54" y="396" width="552" height="106" rx="10"/>
+  <text class="t kick blu" x="76" y="422">5 · PANEL</text>
+  <text class="t ttl ink" x="76" y="449">Five blind lenses → three refuters</text>
+  <text class="t sub gry" x="76" y="469">refute, don't discuss · verdicts stay blind</text>
+  <text class="t sub red" x="76" y="491">+ one planted false candidate</text>
+
+  <text class="t kick blu" x="76" y="536">6 · REPORT</text>
+  <text class="t sub ink" x="188" y="536">survivors · dissent · what was killed  →  back to the clinician</text>
+
+  <!-- exchange -->
+  <path class="flow" d="M 634 176 L 992 176" marker-end="url(#ah)"/>
+  <text class="t kick blu" x="700" y="164">2 · FAN OUT</text>
+  <text class="t lbl gry" x="700" y="200">symptom set · age bracket · sex</text>
+
+  <path class="flow" d="M 992 258 L 634 258" marker-end="url(#ah)"/>
+  <text class="t lbl gry" x="672" y="246">disease · score · case count · abstraction</text>
+
+  <path class="flow" d="M 634 348 L 992 348" marker-end="url(#ah)"/>
+  <text class="t kick blu" x="700" y="336">3 · FOLLOW-UP</text>
+  <text class="t lbl gry" x="700" y="372">one targeted question the hub could not</text>
+  <text class="t lbl gry" x="700" y="392">have known to ask at the start</text>
+
+  <path class="flow" d="M 992 438 L 634 438" marker-end="url(#ah)"/>
+  <text class="t lbl gry" x="690" y="426">answered from local records</text>
+
+  <!-- hospital -->
+  <rect x="1000" y="86" width="730" height="404" rx="14" fill="#FCFCFA" stroke="#7FA4DC" stroke-width="1.8" stroke-dasharray="7 6"/>
+  <text class="t kick blu" x="1028" y="120">HOSPITAL SITE</text>
+  <text class="t sub gry" x="1188" y="120">ClientApp  ·  ×5, in parallel</text>
+
+  <rect class="card" x="1028" y="140" width="290" height="86" rx="10"/>
+  <text class="t ttl ink" x="1050" y="176">Patient records</text>
+  <text class="t sub gry" x="1050" y="200">notes · symptoms · brackets</text>
+
+  <path class="thin" d="M 1324 183 L 1390 183" marker-end="url(#ahg)"/>
+  <text class="t lbl gry" x="1332" y="170">reads</text>
+
+  <rect class="card" x="1396" y="140" width="306" height="86" rx="10"/>
+  <text class="t ttl ink" x="1418" y="176">Site agent</text>
+  <text class="t sub gry" x="1418" y="200">reads the notes locally</text>
+
+  <rect x="1028" y="258" width="674" height="106" rx="10" fill="#FBEEEB" stroke="#E8C4BE" stroke-width="1.5"/>
+  <text class="t kick red" x="1052" y="288">NEVER LEAVES THIS BOUNDARY</text>
+  <text class="t ttl ink" x="1052" y="320">record_id · free-text note · anything identifying</text>
+  <text class="t sub gry" x="1052" y="344">read where they live, then dropped</text>
+
+  <text class="t lbl gry" x="1028" y="398">An allowlist decides what may cross, so a field added to the record</text>
+  <text class="t lbl gry" x="1028" y="420">format later cannot leak by being forgotten.</text>
+  <text class="t lbl gry" x="1028" y="456">A site that has seen nothing comparable says so — itself a result.</text>
+
+  <!-- caption -->
+  <text class="t cap gry" x="30" y="618">Flower 1.35  ·  a ServerApp fanning out over Grid.send_and_receive to a ClientApp at each hospital.  Two round-trips, ~30 model calls, ~80 seconds.</text>
+</svg>
