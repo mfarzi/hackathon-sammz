@@ -1,0 +1,36 @@
+[project]
+name = "adversarial-review-panel"
+version = "0.1.0"
+description = "Five blind reviewers, one master, and a refutation round that kills plausible-but-wrong findings"
+license = { file = "LICENSE" }
+requires-python = ">=3.11,<4.0"
+dependencies = ["flwr>=1.35.0,<2.0", "openai>=2.16.0,<3.0.0"]
+
+[tool.flwr.app]
+publisher = "local"
+fab-format-version = 1
+flwr-version-target = "1.35.0"
+fab-include = ["review_panel/**/*.py", "fixtures/**/*.py", "LICENSE"]
+
+[tool.flwr.app.config.agent]
+input = ""
+
+[tool.flwr.app.config.panel]
+# File or directory to review. Relative to the app root.
+target = "fixtures/buggy_cart"
+# Model ref used by every panel member and the master.
+model = "openai/gpt-5.6-sol"
+# Max findings each lens may raise in round 1.
+max-findings-per-lens = 4
+# Max candidate findings carried into the refutation round, after dedup.
+max-candidates = 8
+# How many independent refuters attack each candidate finding.
+refuters-per-finding = 3
+# Verdicts a finding needs before survival counts as evidence. Below this it is
+# reported as unverified rather than as a survivor. Clamped to refuters-per-finding.
+min-votes = 2
+# Ride a known-false finding through round 2 to check the refuters still refute.
+canary = true
+
+[tool.flwr.app.components]
+agentapp = "review_panel.agent_app:app"
