@@ -111,6 +111,13 @@ def build_command(case: str, args: argparse.Namespace) -> list[str]:
 def run(case: str, args: argparse.Namespace) -> int:
     env = dict(os.environ)
     env["PATH"] = f"{VENV_BIN}{os.pathsep}{env.get('PATH', '')}"
+    # Ray deduplicates identical repeated log lines by default and only flushes
+    # them once it is sure no more repeats are coming. Under a piped, non-tty
+    # stdout (exactly this process) that flush can be delayed past when the
+    # simulation actors tear down, so some sites' "records searched" lines
+    # never arrive at all - the UI then shows that site stuck "searching"
+    # forever, even after the consult has already finished successfully.
+    env["RAY_DEDUP_LOGS"] = "0"
 
     print(f"\n{C_BOLD}Consulting the network…{C_OFF}")
     if case:

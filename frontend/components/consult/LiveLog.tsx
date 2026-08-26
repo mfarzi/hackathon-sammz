@@ -69,17 +69,78 @@ const TAG_STYLES: Record<LiveLine["kind"], string> = {
   plain: "",
 };
 
+/** Turn `**bold**` spans into <strong>, leaving everything else as plain text. */
+function renderInline(text: string, keyPrefix: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith("**") && part.endsWith("**") ? (
+      <strong key={`${keyPrefix}-${i}`} className="font-semibold text-ink">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
+
+/**
+ * The master's report arrives as real markdown. This is the one part of the
+ * output a clinician actually reads, so it earns the same serif prose
+ * treatment as the rest of the app rather than staying in the log's
+ * monospace voice - just enough structure (headings, bullets, bold) to read
+ * as a finished report instead of raw text with asterisks in it.
+ */
+export function ReportLine({ text, id }: { text: string; id: number }) {
+  if (text.startsWith("### ")) {
+    return (
+      <h4 key={id} className="mt-3 font-serif text-[14px] font-semibold text-ink">
+        {renderInline(text.slice(4), `h4-${id}`)}
+      </h4>
+    );
+  }
+  if (text.startsWith("## ")) {
+    return (
+      <h3
+        key={id}
+        className="mt-4 border-t border-rule pt-3 font-serif text-[16px] font-semibold text-ink"
+      >
+        {renderInline(text.slice(3), `h3-${id}`)}
+      </h3>
+    );
+  }
+  if (text.startsWith("- ")) {
+    return (
+      <div key={id} className="mt-1 flex gap-2 font-serif text-[13.5px] leading-relaxed text-ink-muted">
+        <span className="text-ink-faint">–</span>
+        <span>{renderInline(text.slice(2), `li-${id}`)}</span>
+      </div>
+    );
+  }
+  return (
+    <p key={id} className="mt-2 font-serif text-[13.5px] leading-relaxed text-ink-muted">
+      {renderInline(text, `p-${id}`)}
+    </p>
+  );
+}
+
 export function LiveLogLine({ line }: { line: LiveLine }) {
   if (line.kind === "rule") {
     return <div className="my-2 border-t border-rule" />;
   }
   if (!line.text) return null;
 
+  if (line.kind === "report") {
+    return <ReportLine text={line.text} id={line.key} />;
+  }
+
   return (
     <div className={`whitespace-pre-wrap ${KIND_STYLES[line.kind]}`}>
       {line.tag && (
-        <span className={`mr-2 font-semibold ${TAG_STYLES[line.kind]}`}>{line.tag}</span>
+        <span className={`font-semibold ${TAG_STYLES[line.kind]}`}>{line.tag}</span>
       )}
+      {/* A real space, not a CSS margin: margin creates a visual gap but
+          leaves zero characters in the DOM, so copying the log as text glues
+          the tag onto the body with nothing between them. */}
+      {line.tag ? "  " : ""}
       {line.text}
     </div>
   );

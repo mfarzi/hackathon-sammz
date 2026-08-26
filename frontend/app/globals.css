@@ -20,6 +20,26 @@
   --color-ask: #a3742a;
   --color-ask-soft: #f3ead9;
 
+  /* NHS palette — Rare Disease Consult Network product surface */
+  --color-nhs-blue: #005eb8;
+  --color-nhs-dark: #003087;
+  --color-nhs-bright: #0072ce;
+  --color-nhs-aqua: #00a9ce;
+  --color-nhs-green: #007f3b;
+  --color-nhs-green-soft: #f5fbf7;
+  --color-nhs-red: #d5281b;
+  --color-nhs-red-soft: #fdf2f1;
+  --color-nhs-yellow: #ffb81c;
+  --color-nhs-yellow-soft: #fffcf2;
+  --color-nhs-yellow-ink: #8a6100;
+  --color-nhs-focus: #ffeb3b;
+  --color-nhs-ink: #212b32;
+  --color-nhs-grey-1: #4c6272;
+  --color-nhs-grey-2: #768692;
+  --color-nhs-grey-3: #aeb7bd;
+  --color-nhs-grey-4: #d8dde0;
+  --color-nhs-grey-5: #f0f4f5;
+
   --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
 }

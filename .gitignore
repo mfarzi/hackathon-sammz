@@ -12,3 +12,19 @@ data/
 
 # SuperNode identity keys
 docker/keys/
+
+# The demo frontend isn't part of the Flower app (not in fab-include) and its
+# build artifacts blow past Flower Hub's 1000-file publish limit on their own.
+# Already covered by frontend/.gitignore for git itself; `flwr app publish`
+# only reads the root .gitignore, so these need to be repeated here too.
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+
+# Unused draft data at repo root - not referenced anywhere in consult/, and
+# pushes the Hub publish over its payload size limit alongside the sampled
+# corpus that IS needed (consult/sample_data/).
+/site_a.jsonl
+/site_b.jsonl
+/site_c.jsonl
