@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""Ask the hospital network about a patient.
+
+A thin wrapper over `flwr run` that handles the three things that are easy to get
+wrong - an absolute data directory, the bare model id, and putting the venv on
+PATH - and then filters the runtime's logging down to what a person watching
+actually wants to see.
+
+    ./ask                             prompt for a case, then keep asking
+    ./ask "months of tremor, ..."     one consult and exit
+    ./ask --dry-run "..."             retrieval and ranking only, no model calls
+    ./ask --raw "..."                 don't filter the runtime's output
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+VENV_BIN = ROOT / ".venv" / "bin"
+DEFAULT_MODEL = "gpt-5.6-sol"
+DEFAULT_FEDERATION = "local-sim"
+
+# The runtime prefixes a site's own output with the ray actor that produced it.
+ACTOR_PREFIX = re.compile(r"^\(\w+ pid=\d+\)\s*")
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+# Ray annotates repeated lines, and appends advice about its own log dedup. Both
+# ride on the end of a line that is otherwise worth showing, so they are trimmed
+# off rather than used to hide the line.
+REPEAT_NOTE = re.compile(
+    r"\s*(\[repeated \d+x across cluster\]|\(Ray deduplicates logs.*)\s*$"
+)
+
+C_DIM, C_BOLD, C_CYAN, C_GREEN, C_RED, C_OFF = (
+    "\033[2m", "\033[1m", "\033[36m", "\033[32m", "\033[31m", "\033[0m"
+)
+
+
+def styled(line: str) -> str | None:
+    """Colour a line worth showing, or return None to hide it."""
+    clean = ACTOR_PREFIX.sub("", ANSI.sub("", line)).rstrip()
+    # Both annotations can ride on one line, so strip until nothing is left.
+    while True:
+        trimmed = REPEAT_NOTE.sub("", clean)
+        if trimmed == clean:
+            break
+        clean = trimmed
+    if not clean:
+        return None
+
+    if clean.startswith("[hub]"):
+        body = clean[5:].strip()
+        if body.startswith("calibration") or "DRY RUN" in body:
+            return f"{C_BOLD}hub{C_OFF}  {body}"
+        return f"{C_CYAN}hub{C_OFF}  {body}"
+    if clean.startswith("[panel]"):
+        body = clean[7:].strip()
+        colour = C_GREEN if ("caught" in body or "survivor" in body) else C_DIM
+        if "MISSED" in body:
+            colour = C_RED
+        return f"{colour}panel{C_OFF}  {body}"
+    if clean.startswith("[hospital"):
+        site, _, body = clean[1:].partition("]")
+        return f"{C_DIM}{site}{C_OFF}  {body.strip()}"
+
+    # The report itself, between the rule lines, plus real errors.
+    if clean.startswith("===="):
+        return f"\n{C_DIM}{'─' * 72}{C_OFF}"
+    if "ERROR" in clean or "Traceback" in clean or clean.startswith("Exit Code"):
+        return f"{C_RED}{clean}{C_OFF}"
+    if clean.startswith(("INFO", "WARNING", "DEBUG")) or clean.startswith("["):
+        return None
+    if clean.startswith(("Successfully", "Using SuperLink", "Starting", "⚠️", "🌸")):
+        return None
+    # Deprecation notices arrive as indented continuation lines with no prefix
+    # of their own, and ray appends its own advice about log deduplication.
+    if line.startswith((" ", "\t")) or "deprecated" in clean.lower():
+        return None
+    if clean.startswith("https://docs.ray.io"):
+        return None
+    return clean
+
+
+def build_command(case: str, args: argparse.Namespace) -> list[str]:
+    config = [
+        f"panel.model='{args.model}'",
+        f"consult.data-dir='{args.data_dir}'",
+    ]
+    if args.dry_run:
+        config.append("consult.dry-run=true")
+    if args.no_followup:
+        config.append("consult.followup=false")
+    if args.symptoms:
+        config.append(f"consult.symptoms='{args.symptoms}'")
+    if case:
+        # Single-quoted TOML: an apostrophe in the prose would end the string.
+        config.append(f"consult.case='{case.replace(chr(39), chr(8217))}'")
+
+    return [
+        str(VENV_BIN / "flwr"), "run", str(ROOT), args.federation,
+        "--stream", "--run-config", " ".join(config),
+    ]
+
+
+def run(case: str, args: argparse.Namespace) -> int:
+    env = dict(os.environ)
+    env["PATH"] = f"{VENV_BIN}{os.pathsep}{env.get('PATH', '')}"
+
+    print(f"\n{C_BOLD}Consulting the network…{C_OFF}")
+    if case:
+        print(f"{C_DIM}{case}{C_OFF}\n")
+
+    process = subprocess.Popen(
+        build_command(case, args), env=env, cwd=str(ROOT),
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, bufsize=1,
+    )
+    assert process.stdout is not None
+    for line in process.stdout:
+        if args.raw:
+            sys.stdout.write(line)
+            continue
+        shown = styled(line)
+        if shown is not None:
+            print(shown, flush=True)
+    return process.wait()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="ask", description="Ask the hospital network about a patient."
+    )
+    parser.add_argument("case", nargs="*", help="the patient's presentation, in plain language")
+    parser.add_argument("--dry-run", action="store_true", help="retrieval and ranking only, no model calls")
+    parser.add_argument("--symptoms", default="", help="skip the parse: comma-separated symptom tokens")
+    parser.add_argument("--no-followup", action="store_true", help="skip the second hop")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--federation", default=DEFAULT_FEDERATION)
+    parser.add_argument("--data-dir", default=str(ROOT / "data"))
+    parser.add_argument("--raw", action="store_true", help="show the runtime's unfiltered output")
+    args = parser.parse_args()
+
+    if not (VENV_BIN / "flwr").exists():
+        print(f"{C_RED}No flwr in {VENV_BIN}. Run `uv sync` first.{C_OFF}")
+        return 1
+    if not Path(args.data_dir).is_dir():
+        print(f"{C_RED}No data directory at {args.data_dir}.{C_OFF}")
+        return 1
+    if not args.dry_run and not (os.environ.get("OPENAI_API_KEY") or (ROOT / ".env").exists()):
+        print(f"{C_RED}No OPENAI_API_KEY, and no .env to read one from.{C_OFF}")
+        print(f"{C_DIM}Use --dry-run to exercise the federation without a model.{C_OFF}")
+        return 1
+
+    if args.case:
+        return run(" ".join(args.case), args)
+
+    # No case given: keep asking until they leave.
+    print(f"{C_BOLD}Rare Disease Consult Network{C_OFF}")
+    print(f"{C_DIM}Describe the patient in plain language. Blank line or Ctrl-D to quit.{C_OFF}")
+    while True:
+        try:
+            case = input(f"\n{C_BOLD}case>{C_OFF} ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 0
+        if not case:
+            return 0
+        try:
+            run(case, args)
+        except KeyboardInterrupt:
+            print(f"\n{C_DIM}interrupted{C_OFF}")
+
+
+if __name__ == "__main__":
+    sys.exit(main())

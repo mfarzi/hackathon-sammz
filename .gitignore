@@ -4,10 +4,4 @@ __pycache__/
 .flwr/
 *.fab
 .DS_Store
-
-# frontend
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/build/
-frontend/*.tsbuildinfo
+.env

@@ -1,36 +1,81 @@
 [project]
-name = "adversarial-review-panel"
-version = "0.1.0"
-description = "Five blind reviewers, one master, and a refutation round that kills plausible-but-wrong findings"
+name = "rare-disease-consult-network"
+version = "0.2.0"
+description = "Federated rare-disease consult: hospitals search their own records, an adversarial panel attacks the answers"
 license = { file = "LICENSE" }
 requires-python = ">=3.11,<4.0"
-dependencies = ["flwr>=1.35.0,<2.0", "openai>=2.16.0,<3.0.0"]
+# `ray` powers the local simulation backend only. A real deployment (SuperGrid,
+# or real hospital SuperNodes) never touches it, but the runtime env installs
+# exactly what is declared here, so a local demo needs it named explicitly.
+dependencies = ["flwr>=1.35.0,<2.0", "openai>=2.16.0,<3.0.0", "ray>=2.9"]
 
 [tool.flwr.app]
 publisher = "local"
 fab-format-version = 1
 flwr-version-target = "1.35.0"
-fab-include = ["review_panel/**/*.py", "fixtures/**/*.py", "LICENSE"]
+# Patient records are deliberately NOT shipped in the FAB. Each hospital node
+# reads its own from `consult.data-dir`; that is the whole point of the design,
+# and a 33MB bundle of clinical notes travelling with the app would contradict it.
+fab-include = ["consult/**/*.py", "consult/*.json", "review_panel/**/*.py", "fixtures/**/*.py", "LICENSE"]
 
 [tool.flwr.app.config.agent]
 input = ""
 
+[tool.flwr.app.config.consult]
+# The clinician's case description, in plain language.
+case = ""
+# Where each hospital node reads its records from. Absolute path, or relative to
+# the app root. A node reads "<data-dir>/<site-name>.jsonl".
+data-dir = "data"
+# Ask one targeted follow-up question after the first round.
+followup = true
+# Retrieval and ranking only: no agents, no panel, no model calls. Proves the
+# federation works without spending a token.
+dry-run = false
+# Skip the parsing call by giving symptoms directly, comma separated.
+symptoms = ""
+gender = ""
+age-bracket = ""
+
 [tool.flwr.app.config.panel]
-# File or directory to review. Relative to the app root.
-target = "fixtures/buggy_cart"
 # Model ref used by every panel member and the master.
 model = "openai/gpt-5.6-sol"
-# Max findings each lens may raise in round 1.
-max-findings-per-lens = 4
-# Max candidate findings carried into the refutation round, after dedup.
-max-candidates = 8
+# Max candidates each lens may raise in round 1.
+max-findings-per-lens = 3
+# Max candidates carried into the refutation round, after dedup.
+max-candidates = 5
 # How many independent refuters attack each candidate finding.
 refuters-per-finding = 3
 # Verdicts a finding needs before survival counts as evidence. Below this it is
 # reported as unverified rather than as a survivor. Clamped to refuters-per-finding.
 min-votes = 2
-# Ride a known-false finding through round 2 to check the refuters still refute.
+# Ride a known-false candidate through round 2 to check the refuters still refute.
 canary = true
 
+
+#######################################################################
+# CONFIGURATION MIGRATION NOTICE:
+#
+# What was previously called "federation config" for SuperLink
+# connections in pyproject.toml has been renamed and moved.
+#
+# These settings are now **SuperLink connection configuration**
+# and are defined in the Flower configuration file.
+#
+# The entries below are commented out intentionally and are kept
+# only as a migration reference.
+#
+# Docs: https://flower.ai/docs/framework/ref-flower-configuration.html
+#######################################################################
+
+# [tool.flwr.federations]
+# default = "local-sim"
+
+# # Five simulated hospitals on one machine. Each supernode gets a partition-id
+# # from the runtime, which maps to data/hospital_<n>.jsonl.
+# [tool.flwr.federations.local-sim]
+# options.num-supernodes = 5
+
 [tool.flwr.app.components]
-agentapp = "review_panel.agent_app:app"
+serverapp = "consult.server_app:app"
+clientapp = "consult.client_app:app"

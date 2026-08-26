@@ -1,7 +1,8 @@
-# Adversarial Review Panel
+# Rare Disease Consult Network
 
-A Flower AgentApp that reviews code with five blind specialists, then attacks
-its own findings before reporting them.
+A Flower federation where a clinician consults every hospital at once about a
+patient nobody can place — and an adversarial panel attacks the answers before
+they reach anyone.
 
 **Track 1 — Flower Agent Harness.** Collaborative Agent Hackathon, Cambridge,
 26 August 2026.
@@ -30,59 +31,103 @@ Open http://localhost:3000 for the token specimen. Product screens come next.
 
 ## The idea
 
-Most multi-agent review systems fan out, collect opinions, and let the agents
-discuss until they agree. That is the wrong shape. Five *independent* judgements
-are valuable precisely because their errors are uncorrelated; the moment you
-show round-1 results to every agent and ask them to converge, you get anchoring.
-The agents settle on whatever was stated first or loudest, and the consensus
-that emerges measures **contagion, not correctness**. Worse, it fails hardest in
-exactly the cases you care about: a unanimous verdict reached by discussion looks
-more trustworthy than a split verdict reached independently, even when the split
-one was right.
+A rare disease is rare at any one hospital and not rare across fifty. The
+consultant seeing an unusual presentation has one or two comparable cases in
+living memory and no way to reach the three sitting in a hospital two hundred
+miles away. The data that would settle the question exists; it is just
+distributed, and it cannot be centralised, because it is patient records.
 
-So this panel never converges by discussion. It runs two rounds, both blind.
+So the query travels instead of the data.
 
 ```
-             ┌─ correctness ─┐
-             ├─ security ────┤
-  code ──────┼─ performance ─┼──► master ──► candidates
-             ├─ robustness ──┤   (dedupe,      │
-             └─ contracts ───┘    rank)        │
-             round 1: blind, parallel          │
-                                               ▼
-             ┌─ 3 lenses that did NOT raise it ─┐
-             │  each asked to REFUTE, not discuss│
-             └───────────────┬───────────────────┘
-             round 2: blind, parallel
-                             ▼
-        survivors + dissent + what got killed + calibration
+ ┌──────────────┐                ┌ hospital site ──────────── ×N, in parallel ┐
+ │  hub agent   │                │                                            │
+ │              │─ symptom set ─►│  patient records ──reads──► site agent     │
+ │  ServerApp   │  + brackets    │  notes, symptoms            ClientApp      │
+ │  + panel     │                │                                            │
+ │              │◄─ disease ─────│                                            │
+ │              │   score, count │  never leaves this box:                    │
+ │              │   + abstraction│  record_id · free text · anything          │
+ │              │                │  identifying                               │
+ │              │─ follow-up ───►│                                            │
+ └──────────────┘  "K-F rings?"  └────────────────────────────────────────────┘
 ```
 
-**Round 1.** Five lens agents review the target in parallel. Each has a narrow,
-disjoint mandate, because five agents given the same prompt only sample variance
-whereas five given different mandates catch failure modes that redundancy cannot.
-None can see the others.
+Six stages: the clinician's description is parsed into a structured query; it
+fans out to every hospital at once; each site searches its own records and its
+own agent reads the matching notes locally; the hub asks one targeted follow-up
+it could not have known to ask at the start; the panel attacks what came back;
+the master reports what survived.
 
-**Master.** Deduplicates and ranks. It decides nothing about truth.
+## The site agent is the privacy boundary
 
-**Round 2.** Every candidate is attacked by three lenses that did not raise it,
-each told to refute rather than discuss, each defaulting to *refuted* when
-uncertain, and each still blind to the other verdicts. The burden of proof sits
-with the finding. A finding dies on a majority of refutations.
+The obvious way to protect the free-text notes is to refuse to send them. That
+also throws away the clinical richness — the temporal course, the response to
+treatment, the finding that was notably absent — which is most of what
+distinguishes a rare disease from a common one.
 
-**Report.** Survivors carry their dissent. Killed findings are shown, not hidden
-— seeing what did not survive is what makes the survivors worth trusting.
+Putting a reading agent inside the hospital keeps both. The note never moves,
+and its content still reaches the network as an abstraction the site wrote:
+*"all four of our cases showed slit-lamp-confirmed Kayser–Fleischer rings; none
+had fever at onset."* What crosses the wire is a judgement, not a record.
+
+`_strip_for_wire` is an allowlist rather than a blocklist, so a field added to
+the record format later cannot leak by being forgotten.
+
+## Case count is provenance, not strength
+
+The corpus is wildly uneven — 3,528 cases of community-acquired pneumonia, 8 of
+addisonian crisis. Any score that scales with the number of matching patients
+hands the top of the list to whatever is best published, which is the exact
+opposite of the point.
+
+So ranking uses the **mean of the network's best three similarity scores**,
+taking fewer if fewer exist and never padding with zeros. One case at 0.80 beats
+a hundred cases topping out at 0.80 / 0.79 / 0.78. Case count travels as
+provenance and never touches the score; it is labelled as such in every prompt,
+so a lens cannot quietly read volume as evidence.
+
+Similarity itself is deliberately dumb — Jaccard overlap of symptom sets,
+computed by identical code at every site. It has to be: sites are separate
+processes in separate institutions, and if each scored with its own model call,
+a 0.85 from one and a 0.85 from another would not be the same claim. Retrieval
+decides what gets discussed. The agents decide what it means.
+
+## The panel never converges by discussion
+
+Five lens agents assess the network's candidates independently and in parallel,
+each with a disjoint mandate — symptom fit, demographic plausibility, common
+explanations, evidence quality, contradicting evidence. None can see the others.
+
+Then every candidate is attacked by three lenses, each told to **refute rather
+than discuss**, each defaulting to *refuted* when uncertain, each still blind to
+the other verdicts. The burden of proof sits with the candidate. A candidate
+dies on a majority of refutations.
+
+Showing round-1 results to all five and asking them to agree would correlate
+their judgements and turn consensus into a measure of contagion rather than
+correctness. That matters more here than in code review, because anchoring on
+the first plausible diagnosis is the classic way a differential goes wrong.
+
+Agreement must not reduce scrutiny either. Refuters are drawn first from lenses
+with no stake in a candidate, but the count is always filled — topping up from
+the lenses that raised it when too few disinterested ones remain. Without that,
+a candidate raised by four of five lenses drew a single verdict, fell below
+`min-votes`, and was reported as *unverified*: the best-corroborated finding
+getting the least scrutiny, which inverts the whole point of running round 1
+blind.
 
 ## The calibration probe
 
 A panel that never rejects anything is indistinguishable from a rubber stamp,
 and "it survived refutation" then carries no information.
 
-So one **known-false finding** rides through round 2 alongside the real
-candidates, indistinguishable from them to the refuters. Its claim is checkable
-against the code and wrong. If the refuters kill it, the run's verdicts mean
-something. If it survives, the report leads with a calibration failure and says
-plainly that the other verdicts should not be trusted.
+So one **known-false candidate** rides through round 2 alongside the real ones,
+indistinguishable to the refuters. It asserts multi-site support for a disease no
+site reported at all — checkable against the evidence, and wrong. If the refuters
+kill it, the run's verdicts mean something. If it survives, the report leads with
+a calibration failure and says plainly that the other verdicts should not be
+trusted.
 
 The system measures its own reliability on every run, and reports the answer
 whether or not it is flattering.
@@ -91,73 +136,145 @@ whether or not it is flattering.
 
 Not retrofitted — it is what the architecture is for.
 
-- **Nothing is mutated.** The panel reads code and reports. It cannot edit,
-  commit, or execute the code under review.
-- **Every verdict is attributable.** Which lens raised a finding, which lenses
-  attacked it, how each voted, and their stated reasoning all reach the report.
+- **Nothing identifying leaves a hospital.** Record identifiers and free-text
+  notes are read locally and dropped; only an allowlist of fields is ever copied
+  onto the wire.
+- **Every verdict is attributable.** Which lens raised a candidate, which
+  attacked it, how each voted, and their reasoning all reach the report.
 - **Dissent survives to the output.** A 1-of-3 split is never presented as
   unanimous.
-- **Thin evidence is labelled, not counted.** A finding that drew fewer than
+- **Thin evidence is labelled, not counted.** A candidate drawing fewer than
   `min-votes` verdicts is reported as *unverified* rather than as a survivor. A
-  refuter that crashed cast no vote and is never silently read as agreement.
-- **No silent truncation.** Candidates dropped by a cap, reviewers that failed,
-  and source that was too long to review are all stated in the report. A capped
-  panel that quietly reports "all clear" would be lying.
+  refuter that crashed cast no vote and is never read as agreement.
+- **No silent truncation.** Diseases trimmed by the per-site cap, candidates
+  dropped by the candidate cap, lenses that failed, and sites that never answered
+  are all stated in the report. A site that did not reply is never counted as a
+  site that found nothing.
+- **The vocabulary is closed.** An unconstrained parse produces plausible
+  synonyms that match no record, and an empty consult looks identical to one that
+  genuinely found nothing. Symptoms are mapped onto a shared vocabulary and
+  anything unrecognised is reported, not dropped in silence.
+- **It advises, it does not diagnose.** Every prompt says so, and the report
+  describes case counts as leads to investigate rather than proof.
 - **The system flags its own unreliability** via the calibration probe.
 
 ## Running it
 
 ```bash
-flwr run . supergrid --stream
+export PATH="$PWD/.venv/bin:$PATH"   # flwr launches flower-superlink from PATH
+
+CASE='Woman in her twenties, months of worsening tremor and slurred speech, with a marked change in mood and behaviour noted by family. Jaundiced on examination. Persistently tired. No fever.'
+
+flwr run . local-sim --stream --run-config \
+  "panel.model='gpt-5.6-sol' consult.data-dir='$PWD/data' consult.case='$CASE'"
 ```
 
-Review something else:
+Three things that must be right:
+
+- `consult.data-dir` **must be absolute**. The app runs from `~/.flwr/apps/…`,
+  so a relative path finds nothing.
+- `panel.model` needs the bare model id when running against the OpenAI API
+  directly; the `openai/` prefix in the default is a Flower runtime ref.
+- `.venv/bin` must be on `PATH`, or `flwr` cannot launch `flower-superlink`.
+
+Credentials come from `OPENAI_API_KEY`, found either in the environment or in a
+`.env` file at or above the working directory. Flower runs the ServerApp and each
+ClientApp as separate processes and a SuperLink started earlier will not inherit
+a later `export`, so the app looks for the file itself rather than depending on
+launch order.
+
+### Rehearsing without spending a token
 
 ```bash
-flwr run . supergrid --stream \
-  --run-config 'panel.target="path/to/code" agent.input="focus on the auth path"'
+flwr run . local-sim --stream --run-config \
+  "consult.dry-run=true consult.data-dir='$PWD/data' \
+   consult.symptoms='jaundice,tremor,dysarthria,mood_change,fatigue'"
 ```
 
-`panel.target` is resolved inside the app directory and must stay there, so
-whatever you want reviewed needs to be listed in `fab-include` to ship with the
-app.
+Fan-out, per-site search, and ranking, with no agents and no panel. Proves the
+federation works and takes about 12 seconds.
 
 ### Configuration
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `panel.target` | `fixtures/buggy_cart` | File or directory to review |
-| `panel.model` | `openai/gpt-5.6-sol` | Model ref for every panel member |
-| `panel.max-findings-per-lens` | `4` | Round-1 cap per lens |
-| `panel.max-candidates` | `8` | Candidates carried into round 2 |
-| `panel.refuters-per-finding` | `3` | Independent attackers per finding |
+| `consult.case` | *(built-in example)* | The clinician's description, in plain language |
+| `consult.data-dir` | `data` | Where each node reads `<site-name>.jsonl` |
+| `consult.symptoms` | `""` | Skip the parse with an explicit comma-separated list |
+| `consult.followup` | `true` | Ask one targeted follow-up after round 1 |
+| `consult.dry-run` | `false` | Retrieval and ranking only; no model calls |
+| `panel.model` | `openai/gpt-5.6-sol` | Model ref for every agent |
+| `panel.max-findings-per-lens` | `3` | Round-1 cap per lens |
+| `panel.max-candidates` | `5` | Candidates carried into round 2 |
+| `panel.refuters-per-finding` | `3` | Independent attackers per candidate |
 | `panel.min-votes` | `2` | Verdicts needed before survival counts |
 | `panel.canary` | `true` | Run the calibration probe |
-| `agent.input` | `""` | Optional focus hint, honoured within each mandate |
 
-Round 1 costs 5 calls and round 2 costs up to `max-candidates × refuters`, all
-parallel. Defaults sit inside SuperGrid's 5-minute task timeout.
+Roughly 30 model calls across two network round-trips. A full run takes about 80
+seconds against five simulated hospitals.
 
-## The demo target
+## The data
 
-`fixtures/buggy_cart` is a small cart service holding real defects — SQL
-injection, a mutable default argument, a swallowed exception, an N+1 query, a
-dropped tax class — alongside code that *pattern-matches* as defective but holds
-up under scrutiny.
+Five per-hospital files in `data/`, one JSON record per line:
 
-The traps are deliberately unlabelled. An earlier version commented them
-("parameterised, only looks like string-built SQL"), which told the reviewers the
-answer and left round 2 with nothing to reject.
+```json
+{
+  "record_id": "7F3A2C91",
+  "disease": "wilson_disease",
+  "symptoms": ["tremor", "dysarthria", "jaundice", "psychiatric_change"],
+  "gender": "F", "age_bracket": "18-30", "race": "White",
+  "height_bracket": "160-169cm", "weight_bracket": "60-69kg",
+  "text": "<free-text clinical note>"
+}
+```
+
+75,001 records across 58 diseases, genuinely long-tailed: 3,528 cases of
+community-acquired pneumonia down to 8 of addisonian crisis, with the rare ones
+sitting one to six per site. `record_id` and `text` never leave the hospital.
+JSON Lines and JSON arrays both load, and a malformed line is skipped rather than
+dropping the whole site out of the consult.
+
+`consult/symptom_vocabulary.json` is the 206-token shared vocabulary. It is a
+symptom list, not patient data — in a real deployment, an ontology agreed between
+sites.
+
+## A worked run
+
+A woman in her twenties with months of tremor, slurred speech, behavioural
+change, and jaundice. Five hospitals, 75,001 records, 77 seconds:
+
+```
+wilson_disease            0.405 |    7 cases | hospital_1,4,5
+iron_deficiency_anaemia   0.200 |  178 cases | 4 sites
+influenza                 0.200 |  147 cases | 4 sites
+```
+
+Seven cases outranking 178. The hub then asked the network:
+
+> *Do the records document Wilson-specific testing — particularly a low serum
+> ceruloplasmin with elevated 24-hour urinary copper, or Kayser–Fleischer rings
+> on slit-lamp examination?*
+
+Two hospitals confirmed slit-lamp rings; a third said plainly that its records
+did not document the test. All five lenses independently raised Wilson disease
+and nothing else, and it survived refutation 0-of-3. The planted false candidate
+was killed 3-of-3.
+
+The report kept every caveat: modest absolute similarity, demographic
+concordance unestablished, no patient-specific confirmatory testing supplied —
+*a lead to investigate, not an established diagnosis.*
 
 ## Tests
 
 ```bash
-PYTHONPATH=. python tests/test_panel.py
+PYTHONPATH=. python tests/test_consult.py   # 64 checks
+PYTHONPATH=. python tests/test_panel.py     # 46 checks, the original panel
 ```
 
-46 offline checks over the parts that decide what counts as evidence: dedupe,
-vote accounting, the min-votes gate, refuter assignment, path containment, and
-the canary. No model calls.
+Offline, no model calls. They cover the rules the claims rest on: that count
+never drives ranking, that nothing identifying reaches the wire, that a candidate
+is never silently promoted to survivor, and that agreement never shrinks the
+refuter pool.
 
 ## Layout
 
@@ -168,11 +285,29 @@ review_panel/model.py       runtime-bound OpenAI client, JSON schemas
 fixtures/buggy_cart/        demo target: real defects and unlabelled traps
 tests/test_panel.py         offline checks
 frontend/                   Next.js design system (App Router)
+consult/server_app.py    hub: parse, fan-out, follow-up hop, panel, report
+consult/client_app.py    hospital site: search, local note reading, follow-up
+consult/panel.py         five blind lenses, refutation, calibration probe
+consult/lenses.py        the five diagnostic mandates and both rounds' prompts
+consult/scoring.py       similarity and the top-3-mean network ranking
+consult/records.py       per-site retrieval; notes stay local
+consult/vocabulary.py    the closed symptom vocabulary and the parse constraint
+consult/protocol.py      what travels between hub and sites
+review_panel/            the code-review panel this was retargeted from
 ```
 
 ## Built on
 
-Flower 1.35.0 AgentApp, running on SuperGrid. Round-1 and round-2 calls fan out
-across threads; each `responses.create` opens its own child model task in the
-Flower runtime, so the panel is genuinely concurrent rather than a loop of
-sequential calls in one process.
+Flower 1.35.0, running as a `ServerApp` fanning out over `Grid.send_and_receive`
+to a `ClientApp` at each hospital. Round-1 and round-2 model calls fan out across
+threads, so the panel is genuinely concurrent rather than a loop of sequential
+calls.
+
+Local simulation needs Python ≤ 3.13 and `ray`, which is why `ray` is named
+explicitly in the dependencies — Flower's runtime env installs exactly what the
+app declares.
+
+One thing still untested: a ServerApp running locally gets no model credentials
+from the Flower runtime (`FLWR_RUNTIME_BASE_URL` is unset), so runs here go
+through the OpenAI API directly. Whether SuperGrid supplies them to a ServerApp
+has not been confirmed.
